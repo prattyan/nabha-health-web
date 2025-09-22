@@ -20,6 +20,14 @@ const PATIENT_PROFILES_STORAGE_KEY = 'nabhacare_patient_profiles';
 
 
 export class PrescriptionService {
+  /**
+   * Update review for an appointment
+   * @param appointmentId Appointment ID
+   * @param review Review value (1-5)
+   */
+  updateAppointmentReview(appointmentId: string, review: number): Appointment | null {
+    return this.updateAppointment(appointmentId, { review });
+  }
   private initializeDefaultData(): void {
     // Initialize with some default data if none exists
     if (!this.storageService.getItem(APPOINTMENTS_STORAGE_KEY)) {

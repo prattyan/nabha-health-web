@@ -295,7 +295,9 @@ export default function PatientDashboard() {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {appointments.map((appointment) => (
+                  {[...appointments]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((appointment) => (
                     <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
@@ -354,31 +356,45 @@ export default function PatientDashboard() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('dashboard.records')}</h3>
                 <div className="space-y-4">
-                  {prescriptions.map((prescription) => (
-                    <div key={prescription.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                              {t('prescription.details')}
-                            </span>
-                            <span className="text-sm text-gray-500">{prescription.date}</span>
+                  {prescriptions.map((prescription) => {
+                    return (
+                      <div key={prescription.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                {t('prescription.details')}
+                              </span>
+                              <span className="text-sm text-gray-500">{prescription.date}</span>
+                            </div>
+                            <h4 className="font-semibold text-gray-900">{prescription.diagnosis}</h4>
+                            <p className="text-gray-600">Doctor ID: {prescription.doctorId}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {t('dashboard.medicines')}: {prescription.medicines.length}
+                            </p>
+                            <ul className="mt-2 ml-2 list-disc">
+                              {prescription.medicines.map((med, idx) => (
+                                <li key={med.id || idx} className="mb-1">
+                                  <span className="font-medium text-gray-900">{med.name}</span>
+                                  {med.pharmacy && (
+                                    <span className="ml-2 text-xs text-green-700">(Available at: {med.pharmacy})</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
-                          <h4 className="font-semibold text-gray-900">{prescription.diagnosis}</h4>
-                          <p className="text-gray-600">Doctor ID: {prescription.doctorId}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {t('dashboard.medicines')}: {prescription.medicines.length}
-                          </p>
+                          <div className="flex flex-col items-end space-y-2">
+                            <button
+                              onClick={() => handleViewPrescription(prescription)}
+                              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            >
+                              {t('common.view')} {t('patient.details')}
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => handleViewPrescription(prescription)}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                        >
-                          {t('common.view')} {t('patient.details')}
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -467,6 +483,8 @@ export default function PatientDashboard() {
                   New Date
                 </label>
                 <input
+                  placeholder="Enter value"
+                  title="Input field"
                   type="date"
                   id="reschedule-date"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -478,6 +496,7 @@ export default function PatientDashboard() {
                   New Time
                 </label>
                 <select
+                  title="Select option"
                   id="reschedule-time"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >

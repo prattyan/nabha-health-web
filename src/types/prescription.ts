@@ -12,6 +12,7 @@ export interface Medicine {
   timesToTake: string[]; // e.g., ['08:00', '14:00', '20:00']
   sideEffects?: string[];
   category?: string;
+  pharmacy?: string; // Pharmacy where medicine is available
 }
 
 export interface MedicationTracking {
@@ -59,6 +60,7 @@ export interface Appointment {
   village?: string;
   specialization?: string;
   prescriptionId?: string;
+  review?: number; // Patient review out of 5 stars
   reason: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   symptoms?: string[];
