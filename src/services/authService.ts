@@ -5,6 +5,47 @@ const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
 
 export class AuthService {
+  getUserById(id: string): User | null {
+    const users = this.getUsers();
+    return users.find(u => u.id === id) || null;
+  }
+  // Migration: Update old doctor ID to new format
+  migrateDoctorId(oldId: string, newId: string) {
+    const users = this.getUsers();
+    let updated = false;
+    users.forEach(u => {
+      if (u.id === oldId && u.role === 'doctor') {
+        u.id = newId;
+        updated = true;
+      }
+    });
+    if (updated) {
+      this.saveUsers(users);
+      // Also update doctorId in prescriptions and appointments
+      // Use ES6 import for prescriptionService
+      // @ts-ignore
+      import('./prescriptionService').then(module => {
+        if (module && module.PrescriptionService) {
+          const ps = module.PrescriptionService.getInstance();
+          ps.migrateDoctorIdInData(oldId, newId);
+        }
+      });
+    }
+  }
+  setDoctorAvailableDates(doctorId: string, dates: string[]): void {
+    const users = this.getUsers();
+    const idx = users.findIndex(u => u.id === doctorId && u.role === 'doctor');
+    if (idx !== -1) {
+      users[idx].availableDates = dates;
+      this.saveUsers(users);
+    }
+  }
+
+  getDoctorAvailableDates(doctorId: string): string[] {
+    const users = this.getUsers();
+    const doctor = users.find(u => u.id === doctorId && u.role === 'doctor');
+    return doctor && Array.isArray(doctor.availableDates) ? doctor.availableDates : [];
+  }
   private static instance: AuthService;
   private storageService: StorageService;
 
@@ -16,8 +57,10 @@ export class AuthService {
   }
 
   constructor() {
-    this.storageService = StorageService.getInstance();
-    this.removeSampleDoctors();
+  this.storageService = StorageService.getInstance();
+  this.removeSampleDoctors();
+  // Automatically migrate old doctor ID to new format
+  this.migrateDoctorId('mfsokfzqv5wcsm36gy', 'DOC001');
   }
 
   private removeSampleDoctors(): void {
@@ -35,7 +78,7 @@ export class AuthService {
       return (
         !sampleNames.includes(user.firstName) &&
         !sampleEmails.includes(user.email) &&
-        !sampleLicenses.includes(user.licenseNumber)
+        !(typeof user.licenseNumber === 'string' && sampleLicenses.includes(user.licenseNumber))
       );
     });
     if (filtered.length !== users.length) {
@@ -75,9 +118,6 @@ export class AuthService {
     }
   }
 
-  private generateId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  }
 
   async register(data: RegisterData): Promise<{ success: boolean; message: string; user?: User }> {
     try {
@@ -105,9 +145,21 @@ export class AuthService {
         return { success: false, message: 'Passwords do not match' };
       }
 
-      // Create new user with enhanced data
+      // Generate custom ID
+      let idPrefix = '';
+      let nextNumber = 1;
+      if (data.role === 'doctor') {
+        idPrefix = 'DOC';
+        nextNumber = users.filter(u => u.role === 'doctor').length + 1;
+      } else if (data.role === 'patient') {
+        idPrefix = 'PAT';
+        nextNumber = users.filter(u => u.role === 'patient').length + 1;
+      } else {
+        idPrefix = 'USR';
+        nextNumber = users.length + 1;
+      }
       const newUser: User = {
-        id: this.generateId(),
+        id: `${idPrefix}${nextNumber.toString().padStart(3, '0')}`,
         email: data.email.toLowerCase().trim(),
         password: data.password, // In production, this should be hashed
         firstName: data.firstName.trim(),

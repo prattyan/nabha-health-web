@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { AuthService } from '../../services/authService';
 import { PrescriptionService } from '../../services/prescriptionService';
 import { Appointment, Prescription } from '../../types/prescription';
 import VideoCallModal from '../modals/VideoCallModal';
@@ -14,6 +15,15 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
 export default function DoctorDashboard() {
+  // Migrate missing patient names in appointments on mount
+  React.useEffect(() => {
+    const prescriptionService = PrescriptionService.getInstance();
+    const authService = AuthService.getInstance();
+    prescriptionService.migrateFillPatientNamesInAppointments((id: string) => {
+      const user = authService.getUserById(id);
+      return user ? { firstName: user.firstName, lastName: user.lastName } : null;
+    });
+  }, []);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>(new Date().toLocaleDateString('en-CA'));
   const [showCalendar, setShowCalendar] = useState(false);
@@ -33,13 +43,19 @@ export default function DoctorDashboard() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleAppointment, setRescheduleAppointment] = useState<Appointment | null>(null);
-  // ...existing code...
+  // Doctor availability state
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [showAvailabilityCalendar, setShowAvailabilityCalendar] = useState(false);
+  const authService = AuthService.getInstance();
 
   const prescriptionService = PrescriptionService.getInstance();
 
   React.useEffect(() => {
     if (user) {
       loadDoctorData();
+      if (user.role === 'doctor') {
+        setAvailableDates(authService.getDoctorAvailableDates(user.id));
+      }
     }
   }, [user]);
 
@@ -145,6 +161,7 @@ export default function DoctorDashboard() {
             </div>
           </div>
         </div>
+
 
         {/* Quick Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
@@ -272,14 +289,26 @@ export default function DoctorDashboard() {
                       <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className={`w-3 h-3 rounded-full ${
+                            patient.priority === 'urgent' ? 'bg-purple-700' :
                             patient.priority === 'high' ? 'bg-red-500' :
-                            patient.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                            patient.priority === 'medium' ? 'bg-yellow-500' :
+                            patient.priority === 'low' ? 'bg-green-500' : 'bg-gray-300'
                           }`}></div>
                           <span className="font-medium text-gray-900">{patient.name}</span>
+                          <span
+                            className={`ml-2 text-xs px-2 py-1 rounded-full font-semibold
+                              ${patient.priority === 'urgent' ? 'bg-purple-700 text-white' : ''}
+                              ${patient.priority === 'high' ? 'bg-red-500 text-white' : ''}
+                              ${patient.priority === 'medium' ? 'bg-yellow-400 text-yellow-900' : ''}
+                              ${patient.priority === 'low' ? 'bg-green-500 text-white' : ''}
+                              ${['urgent','high','medium','low'].indexOf(patient.priority) === -1 ? 'bg-gray-300 text-gray-700' : ''}
+                            `}
+                          >
+                            {patient.priority.charAt(0).toUpperCase() + patient.priority.slice(1)}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-sm text-gray-600">{patient.waitTime}</span>
-                          {/* Remove video call button from patientQueue, only show for appointments */}
                         </div>
                       </div>
                     ))}
@@ -290,6 +319,28 @@ export default function DoctorDashboard() {
 
             {activeTab === 'appointments' && (
               <div>
+                {/* Doctor Availability Selection UI - moved here */}
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold mb-2">Set Your Available Dates for Appointments</h2>
+                  <button
+                    className="border border-blue-500 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+                    onClick={() => setShowAvailabilityCalendar(true)}
+                  >
+                    Select Available Dates
+                  </button>
+                  <div className="mt-2">
+                    <span className="font-medium">Current Available Dates:</span>
+                    {availableDates.length > 0 ? (
+                      <ul className="inline-block ml-2">
+                        {availableDates.map(date => (
+                          <li key={date} className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded mr-1 text-xs">{date}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="ml-2 text-gray-500">No dates selected.</span>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">Appointments</h3>
                   <div className="flex space-x-2 items-center">
@@ -485,11 +536,12 @@ export default function DoctorDashboard() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Consultations</h3>
                 <div className="space-y-4">
-                  {prescriptions.slice(0, 10).map((prescription) => (
+                  {[...prescriptions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10).map((prescription) => (
                     <div key={prescription.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-semibold text-gray-900">Patient ID: {prescription.patientId}</h4>
+                          <h4 className="font-semibold text-gray-900">Doctor ID: {prescription.doctorId}</h4>
+                          <h4 className="font-semibold text-gray-900">Patient Name: {prescription.patientName}</h4>
                           <p className="text-gray-600">{prescription.diagnosis}</p>
                           <p className="text-sm text-gray-500 mt-1">Date: {prescription.date}</p>
                           {prescription.followUpDate && (
@@ -515,6 +567,55 @@ export default function DoctorDashboard() {
       </div>
 
       {/* Modals */}
+      {/* Availability Calendar Modal */}
+      {showAvailabilityCalendar && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onClick={() => setShowAvailabilityCalendar(false)}>
+              ✕
+            </button>
+            <h2 className="text-xl font-bold mb-4">Select Available Dates</h2>
+            <Calendar
+              selectRange={false}
+              value={new Date()}
+              tileClassName={({ date }) =>
+                availableDates.includes(date.toLocaleDateString('en-CA')) ? 'bg-blue-200' : ''
+              }
+              allowPartialRange={false}
+              minDate={new Date()}
+              showNeighboringMonth={false}
+              locale="en-CA"
+              onClickDay={(date) => {
+                const dateStr = date.toLocaleDateString('en-CA');
+                setAvailableDates(prev =>
+                  prev.includes(dateStr)
+                    ? prev.filter(d => d !== dateStr)
+                    : [...prev, dateStr]
+                );
+              }}
+            />
+            <div className="mt-4 flex justify-end">
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mr-2"
+                onClick={() => {
+                  if (user && user.role === 'doctor') {
+                    authService.setDoctorAvailableDates(user.id, availableDates);
+                  }
+                  setShowAvailabilityCalendar(false);
+                }}
+              >
+                Save
+              </button>
+              <button
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
+                onClick={() => setShowAvailabilityCalendar(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <VideoCallModal
         isOpen={showVideoCall && !!videoCallRoomId}
         onClose={() => {

@@ -50,7 +50,7 @@ export default function PrescriptionViewModal({
                 <User className="h-5 w-5 text-gray-600" />
                 <h3 className="font-semibold text-gray-900">Patient Information</h3>
               </div>
-              <p className="text-gray-700">{patientName || 'Patient'}</p>
+              <p className="text-gray-700">{prescription.patientName || patientName || 'Patient'}</p>
               <p className="text-sm text-gray-500">ID: {prescription.patientId}</p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">

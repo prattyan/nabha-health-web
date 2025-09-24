@@ -26,6 +26,7 @@ export interface User {
   rating?: number;
   totalPatients?: number;
   totalConsultations?: number;
+  availableDates?: string[]; // for doctors: available appointment dates in 'YYYY-MM-DD' format
 }
 
 export interface DoctorProfile extends User {
@@ -39,6 +40,7 @@ export interface DoctorProfile extends User {
   totalPatients: number;
   totalConsultations: number;
   availability: boolean;
+  availableDates?: string[];
   clinicAddress?: string;
   clinicPhone?: string;
 }

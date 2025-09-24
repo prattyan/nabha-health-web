@@ -10,6 +10,23 @@ import AppointmentBookingModal from '../modals/AppointmentBookingModal';
 import MedicationManagementModal from '../modals/MedicationManagementModal';
 
 export default function PatientDashboard() {
+  type MedicineReminder = {
+    id: string;
+    name: string;
+    time: string;
+    dosage?: string;
+    remainingQuantity?: number;
+    status: 'scheduled' | 'taken' | 'missed';
+  };
+
+  const [medicineReminders, setMedicineReminders] = useState<MedicineReminder[]>([]);
+
+  // Example: Mark medicine as taken
+  const handleMarkMedicineTaken = (id: string) => {
+    setMedicineReminders(reminders => reminders.map(med =>
+      med.id === id ? { ...med, status: 'taken', remainingQuantity: med.remainingQuantity ? med.remainingQuantity - 1 : undefined } : med
+    ));
+  };
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [videoCallRoomId, setVideoCallRoomId] = useState<string | null>(null);
 
@@ -19,7 +36,8 @@ export default function PatientDashboard() {
   }
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('overview');
+  type TabId = 'overview' | 'appointments' | 'records' | 'medicines';
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [showPrescriptionView, setShowPrescriptionView] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [showAppointmentBooking, setShowAppointmentBooking] = useState(false);
@@ -38,6 +56,13 @@ export default function PatientDashboard() {
   }, [user]);
 
   const loadPatientData = () => {
+    // TODO: Load medicine reminders from prescriptions or medication management service
+    // For now, set sample reminders
+    setMedicineReminders([
+      { id: '1', name: 'Paracetamol', time: '09:00 AM', dosage: '500mg', remainingQuantity: 10, status: 'scheduled' },
+      { id: '2', name: 'Amoxicillin', time: '02:00 PM', dosage: '250mg', remainingQuantity: 5, status: 'missed' },
+      { id: '3', name: 'Vitamin D', time: '08:00 PM', dosage: '1000 IU', remainingQuantity: 20, status: 'taken' }
+    ]);
   if (!user) return;
   // Removed initialization of sample prescription and appointment for new patients
   const patientAppointments = prescriptionService.getAppointmentsByPatient(user.id);
@@ -80,59 +105,6 @@ export default function PatientDashboard() {
     setShowAppointmentBooking(false);
   };
 
-  const handleMarkMedicineTaken = (trackingId: string) => {
-    const success = prescriptionService.updateMedicationStatus(
-      trackingId, 
-      'taken', 
-      new Date().toISOString()
-    );
-    if (success) {
-      // Reload data to update the UI
-      loadPatientData();
-    }
-  };
-
-  const getActiveMedicines = () => {
-    if (!user) return [];
-    
-    // Get today's medication tracking entries
-    const today = new Date().toDateString();
-    const medicationTracking = prescriptionService.getMedicationTrackingByPatient(user.id);
-    const todayMedications = medicationTracking.filter(track => {
-      const trackDate = new Date(track.scheduledTime).toDateString();
-      return trackDate === today;
-    });
-
-    // Get medicine details from prescriptions
-    const getMedicineFromTracking = (tracking: any) => {
-      for (const prescription of prescriptions) {
-        const medicine = prescription.medicines.find(med => med.id === tracking.medicineId);
-        if (medicine) {
-          return {
-            id: tracking.id,
-            name: medicine.name,
-            time: new Date(tracking.scheduledTime).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            }),
-            status: tracking.status,
-            dosage: medicine.dosage,
-            instructions: medicine.instructions,
-            remainingQuantity: medicine.remainingQuantity
-          };
-        }
-      }
-      return null;
-    };
-
-    return todayMedications
-      .map(getMedicineFromTracking)
-      .filter(med => med !== null)
-      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-  };
-
-  const medicineReminders = getActiveMedicines();
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -184,17 +156,6 @@ export default function PatientDashboard() {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center">
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <Pill className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-900">{medicineReminders.length}</p>
-                <p className="text-gray-600">{t('dashboard.medicines')}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex items-center">
               <div className="bg-red-100 p-3 rounded-lg">
                 <Heart className="h-6 w-6 text-red-600" />
               </div>
@@ -218,7 +179,7 @@ export default function PatientDashboard() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab.id as TabId)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
@@ -233,6 +194,63 @@ export default function PatientDashboard() {
           </div>
 
           <div className="p-6">
+            {activeTab === 'medicines' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">{t('patient.medicineReminders')}</h3>
+                  <button 
+                    onClick={() => setShowMedicationManagement(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Manage Medications
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {medicineReminders.map((medicine, index) => (
+                    <div key={medicine.id || index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          medicine.status === 'taken' ? 'bg-green-500' : 
+                          medicine.status === 'missed' ? 'bg-red-500' : 'bg-yellow-500'
+                        }`}></div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">{medicine.name}</h4>
+                          <p className="text-sm text-gray-600">{medicine.time}</p>
+                          {medicine.dosage && (
+                            <p className="text-xs text-gray-500">{medicine.dosage}</p>
+                          )}
+                          {medicine.remainingQuantity !== undefined && (
+                            <p className="text-xs text-gray-500">Remaining: {medicine.remainingQuantity}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        {(medicine.status === 'scheduled' || medicine.status === 'missed') && (
+                          <button 
+                            onClick={() => handleMarkMedicineTaken(medicine.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                          >
+                            {t('patient.markTaken')}
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setShowMedicationManagement(true)}
+                          className="border border-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          {t('patient.details')}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {medicineReminders.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No medications scheduled for today</p>
+                      <p className="text-sm">Check the medication management for upcoming doses</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {activeTab === 'overview' && (
               <div className="grid lg:grid-cols-2 gap-8">
                 <div>
@@ -399,63 +417,6 @@ export default function PatientDashboard() {
               </div>
             )}
 
-            {activeTab === 'medicines' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">{t('patient.medicineReminders')}</h3>
-                  <button 
-                    onClick={() => setShowMedicationManagement(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Manage Medications
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {medicineReminders.map((medicine, index) => (
-                    <div key={medicine.id || index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${
-                          medicine.status === 'taken' ? 'bg-green-500' : 
-                          medicine.status === 'missed' ? 'bg-red-500' : 'bg-yellow-500'
-                        }`}></div>
-                        <div>
-                          <h4 className="font-medium text-gray-900">{medicine.name}</h4>
-                          <p className="text-sm text-gray-600">{medicine.time}</p>
-                          {medicine.dosage && (
-                            <p className="text-xs text-gray-500">{medicine.dosage}</p>
-                          )}
-                          {medicine.remainingQuantity && (
-                            <p className="text-xs text-gray-500">Remaining: {medicine.remainingQuantity}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        {(medicine.status === 'scheduled' || medicine.status === 'missed') && (
-                          <button 
-                            onClick={() => handleMarkMedicineTaken(medicine.id)}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
-                          >
-                            {t('patient.markTaken')}
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => setShowMedicationManagement(true)}
-                          className="border border-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-50 transition-colors"
-                        >
-                          {t('patient.details')}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {medicineReminders.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No medications scheduled for today</p>
-                      <p className="text-sm">Check the medication management for upcoming doses</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

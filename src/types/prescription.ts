@@ -30,6 +30,7 @@ export interface MedicationTracking {
 export interface Prescription {
   id: string;
   patientId: string;
+  patientName: string;
   doctorId: string;
   appointmentId: string;
   date: string;

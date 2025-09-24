@@ -1,25 +1,100 @@
 import { 
   Prescription, 
-  Medicine, 
   Appointment, 
-  HealthRecord, 
-  MedicationTracking, 
-  VitalSigns,
-  DoctorAvailability,
-  PatientProfile 
+  HealthRecord
 } from '../types/prescription';
 import { StorageService } from './storageService';
 
 const PRESCRIPTIONS_STORAGE_KEY = 'nabhacare_prescriptions';
 const APPOINTMENTS_STORAGE_KEY = 'nabhacare_appointments';
 const HEALTH_RECORDS_STORAGE_KEY = 'nabhacare_health_records';
-const MEDICATION_TRACKING_STORAGE_KEY = 'nabhacare_medication_tracking';
-const DOCTOR_AVAILABILITY_STORAGE_KEY = 'nabhacare_doctor_availability';
-const PATIENT_PROFILES_STORAGE_KEY = 'nabhacare_patient_profiles';
 
 
 
 export class PrescriptionService {
+  // Migration: Fill missing patientName in appointments using patientId and user data
+  migrateFillPatientNamesInAppointments(getUserById: (id: string) => { firstName: string, lastName: string } | null) {
+    const appointments = this.getAppointments();
+    let updated = false;
+    appointments.forEach(a => {
+      if ((!a.patientName || a.patientName.trim() === '') && a.patientId) {
+        const user = getUserById(a.patientId);
+        if (user) {
+          a.patientName = `${user.firstName} ${user.lastName}`;
+          updated = true;
+        }
+      }
+    });
+    if (updated) {
+      this.saveAppointments(appointments);
+    }
+  }
+  // Medication tracking storage key
+  private static MEDICATION_TRACKING_KEY = 'nabhacare_medication_tracking';
+
+  getMedicationTrackingByPatient(patientId: string) {
+    const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
+    if (!trackingRaw) return [];
+    const tracking = JSON.parse(trackingRaw);
+    return tracking.filter((t: any) => t.patientId === patientId);
+  }
+
+  updateMedicationStatus(trackingId: string, status: 'taken' | 'missed' | 'skipped', actualTime?: string) {
+    const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
+    if (!trackingRaw) return false;
+    const tracking = JSON.parse(trackingRaw);
+    const idx = tracking.findIndex((t: any) => t.id === trackingId);
+    if (idx === -1) return false;
+    tracking[idx].status = status;
+    if (actualTime) tracking[idx].actualTime = actualTime;
+    this.storageService.setItem(PrescriptionService.MEDICATION_TRACKING_KEY, JSON.stringify(tracking));
+    return true;
+  }
+  // Migration: Update doctorId in prescriptions and appointments
+  migrateDoctorIdInData(oldId: string, newId: string) {
+    let updated = false;
+    // Prescriptions
+    const prescriptions = this.getPrescriptions();
+    prescriptions.forEach(p => {
+      if (p.doctorId === oldId) {
+        p.doctorId = newId;
+        updated = true;
+      }
+    });
+    if (updated) {
+      this.savePrescriptions(prescriptions);
+    }
+    // Appointments
+    const appointments = this.getAppointments();
+    let appointmentsUpdated = false;
+    appointments.forEach(a => {
+      if (a.doctorId === oldId) {
+        a.doctorId = newId;
+        appointmentsUpdated = true;
+      }
+    });
+    if (appointmentsUpdated) {
+      this.saveAppointments(appointments);
+    }
+  }
+  // Migration: Fill missing patientName in prescriptions using appointment data
+  migrateFillPatientNames() {
+    const prescriptions = this.getPrescriptions();
+    let updated = false;
+    prescriptions.forEach(p => {
+      if (!p.patientName || p.patientName.trim() === '') {
+        // Find appointment for this prescription
+        const appointment = this.getAppointments().find(a => a.id === p.appointmentId);
+        if (appointment && appointment.patientName) {
+          p.patientName = appointment.patientName;
+          updated = true;
+        }
+      }
+    });
+    if (updated) {
+      this.savePrescriptions(prescriptions);
+    }
+  }
   /**
    * Update review for an appointment
    * @param appointmentId Appointment ID
@@ -36,10 +111,9 @@ export class PrescriptionService {
     if (!this.storageService.getItem(PRESCRIPTIONS_STORAGE_KEY)) {
       const defaultPrescriptions = this.getDefaultPrescriptions();
       this.savePrescriptions(defaultPrescriptions);
-      // Create medication tracking for default prescriptions
-      defaultPrescriptions.forEach(prescription => {
-        this.createMedicationTrackingForPrescription(prescription);
-      });
+    } else {
+      // Run migration to fill missing patient names
+      this.migrateFillPatientNames();
     }
     if (!this.storageService.getItem(HEALTH_RECORDS_STORAGE_KEY)) {
       this.saveHealthRecords(this.getDefaultHealthRecords());
@@ -97,8 +171,6 @@ export class PrescriptionService {
     prescriptions.push(newPrescription);
     this.savePrescriptions(prescriptions);
 
-    // Create medication tracking entries
-    this.createMedicationTrackingForPrescription(newPrescription);
 
     // Update appointment with prescription ID
     this.updateAppointmentWithPrescription(prescriptionData.appointmentId, newPrescription.id);
@@ -256,68 +328,6 @@ export class PrescriptionService {
     return this.getHealthRecords().filter(record => record.patientId === patientId);
   }
 
-  // Medication Tracking Methods
-  private getMedicationTracking(): MedicationTracking[] {
-    const tracking = this.storageService.getItem(MEDICATION_TRACKING_STORAGE_KEY);
-    return tracking ? JSON.parse(tracking) : [];
-  }
-
-  private saveMedicationTracking(tracking: MedicationTracking[]): void {
-    const dataString = JSON.stringify(tracking);
-    this.storageService.setItem(MEDICATION_TRACKING_STORAGE_KEY, dataString);
-  }
-
-  private createMedicationTrackingForPrescription(prescription: Prescription): void {
-    const tracking = this.getMedicationTracking();
-    const currentDate = new Date();
-    
-    prescription.medicines.forEach(medicine => {
-      const endDate = new Date(medicine.endDate || currentDate);
-      const startDate = new Date(medicine.startDate || currentDate);
-      
-      // Create tracking entries for each day and time
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        medicine.timesToTake?.forEach(time => {
-          const scheduledDateTime = new Date(d);
-          const [hours, minutes] = time.split(':');
-          scheduledDateTime.setHours(parseInt(hours), parseInt(minutes));
-          
-          const trackingEntry: MedicationTracking = {
-            id: this.generateId(),
-            medicineId: medicine.id,
-            patientId: prescription.patientId,
-            prescriptionId: prescription.id,
-            scheduledTime: scheduledDateTime.toISOString(),
-            status: 'scheduled',
-            createdAt: new Date().toISOString()
-          };
-          
-          tracking.push(trackingEntry);
-        });
-      }
-    });
-    
-    this.saveMedicationTracking(tracking);
-  }
-
-  getMedicationTrackingByPatient(patientId: string): MedicationTracking[] {
-    return this.getMedicationTracking().filter(track => track.patientId === patientId);
-  }
-
-  updateMedicationStatus(trackingId: string, status: MedicationTracking['status'], actualTime?: string): boolean {
-    const tracking = this.getMedicationTracking();
-    const index = tracking.findIndex(track => track.id === trackingId);
-    
-    if (index !== -1) {
-      tracking[index].status = status;
-      if (actualTime) {
-        tracking[index].actualTime = actualTime;
-      }
-      this.saveMedicationTracking(tracking);
-      return true;
-    }
-    return false;
-  }
 
   // Default Data
   private getDefaultAppointments(): Appointment[] {
@@ -336,9 +346,9 @@ export class PrescriptionService {
     const now = new Date().toISOString();
     return [
       {
-        id: 'hr1',
-        patientId: 'patient1',
-        doctorId: 'doctor1',
+          id: 'hr1',
+          patientId: 'PAT001',
+          doctorId: 'DOC001',
         recordType: 'visit',
         title: 'Annual Health Checkup',
         description: 'Routine annual physical examination',
@@ -361,23 +371,15 @@ export class PrescriptionService {
     const appointments = this.getAppointmentsByPatient(patientId);
     const prescriptions = this.getPrescriptionsByPatient(patientId);
     const healthRecords = this.getHealthRecordsByPatient(patientId);
-    const medicationTracking = this.getMedicationTrackingByPatient(patientId);
-
     return {
       totalAppointments: appointments.length,
       upcomingAppointments: appointments.filter(apt => apt.status === 'scheduled').length,
       totalPrescriptions: prescriptions.length,
       activePrescriptions: prescriptions.filter(p => p.status === 'active').length,
-      totalHealthRecords: healthRecords.length,
-      medicationCompliance: this.calculateMedicationCompliance(medicationTracking)
+      totalHealthRecords: healthRecords.length
     };
   }
 
-  private calculateMedicationCompliance(tracking: MedicationTracking[]): number {
-    if (tracking.length === 0) return 100;
-    const taken = tracking.filter(t => t.status === 'taken').length;
-    return Math.round((taken / tracking.length) * 100);
-  }
 }
 
 // Method to initialize sample prescription for new patients

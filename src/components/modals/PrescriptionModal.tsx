@@ -137,6 +137,7 @@ export default function PrescriptionModal({
 
       const prescriptionData: Omit<Prescription, 'id' | 'createdAt' | 'updatedAt'> = {
         patientId,
+        patientName,
         doctorId,
         appointmentId,
         date: new Date().toISOString().split('T')[0],
@@ -191,8 +192,9 @@ export default function PrescriptionModal({
               </div>
             </div>
             <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600"
+          title="Close modal"
             >
               <X className="h-6 w-6" />
             </button>
@@ -236,6 +238,7 @@ export default function PrescriptionModal({
                 type="button"
                 onClick={addMedicine}
                 className="flex items-center space-x-2 bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                title="Add medicine"
               >
                 <Plus className="h-4 w-4" />
                 <span>Add Medicine</span>
@@ -252,6 +255,7 @@ export default function PrescriptionModal({
                         type="button"
                         onClick={() => removeMedicine(medicine.id)}
                         className="text-red-600 hover:text-red-700"
+                        title="Remove medicine"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -294,6 +298,7 @@ export default function PrescriptionModal({
                         onChange={(e) => updateMedicine(medicine.id, 'frequency', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
+                        title="Select frequency"
                       >
                         <option value="">Select frequency</option>
                         <option value="Once daily">Once daily</option>
@@ -302,22 +307,6 @@ export default function PrescriptionModal({
                         <option value="Four times daily">Four times daily</option>
                         <option value="As needed">As needed</option>
                       </select>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Duration *
-                      </label>
-                      <input
-                        type="text"
-                        value={medicine.duration}
-                        onChange={(e) => updateMedicine(medicine.id, 'duration', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., 7 days"
-                        required
-                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -329,6 +318,8 @@ export default function PrescriptionModal({
                         onChange={(e) => updateMedicine(medicine.id, 'quantity', parseInt(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         min="1"
+                        title="Enter quantity"
+                        placeholder="e.g., 10"
                       />
                     </div>
                     <div>
@@ -372,6 +363,7 @@ export default function PrescriptionModal({
                 onChange={(e) => setFollowUpDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 min={new Date().toISOString().split('T')[0]}
+                title="Select follow-up date"
               />
             </div>
           </div>

@@ -37,6 +37,8 @@ export default function AppointmentBookingModal({
     symptoms: [] as string[],
     notes: ''
   });
+  // Only show available dates for selected doctor
+  const [doctorAvailableDates, setDoctorAvailableDates] = useState<string[]>([]);
   const [symptomInput, setSymptomInput] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,9 +59,17 @@ export default function AppointmentBookingModal({
       if (doctor) {
         setSelectedDoctor(doctor);
         setStep(2);
+        setDoctorAvailableDates(Array.isArray(doctor.availableDates) ? doctor.availableDates : []);
       }
     }
   }, [isOpen, selectedDoctorId, availableDoctors]);
+
+  // Always update available dates when selectedDoctor changes
+  useEffect(() => {
+    if (selectedDoctor) {
+      setDoctorAvailableDates(Array.isArray(selectedDoctor.availableDates) ? selectedDoctor.availableDates : []);
+    }
+  }, [selectedDoctor]);
 
   useEffect(() => {
     if (appointmentData.date && selectedDoctor) {
@@ -87,8 +97,8 @@ export default function AppointmentBookingModal({
   };
 
   const handleDoctorSelect = (doctor: UserType) => {
-    setSelectedDoctor(doctor);
-    setStep(2);
+  setSelectedDoctor(doctor);
+  setStep(2);
   };
 
   const handleDateSelect = (date: string) => {
@@ -262,14 +272,22 @@ export default function AppointmentBookingModal({
                   <Calendar className="h-4 w-4 inline mr-1" />
                   Date *
                 </label>
-                <input
-                  type="date"
-                  min={getMinDate()}
+                {/* Only show available dates for doctor */}
+                <select
                   value={appointmentData.date}
-                  onChange={(e) => handleDateSelect(e.target.value)}
+                  onChange={e => handleDateSelect(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
-                />
+                >
+                  <option value="">Select date</option>
+                  {doctorAvailableDates.length > 0 ? (
+                    doctorAvailableDates.map(date => (
+                      <option key={date} value={date}>{date}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No available dates</option>
+                  )}
+                </select>
               </div>
 
               <div>
