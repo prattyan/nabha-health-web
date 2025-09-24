@@ -312,43 +312,43 @@ export default function PatientDashboard() {
                     {t('patient.bookAppointment')}
                   </button>
                 </div>
+                {/* Upcoming (Scheduled) Appointments */}
                 <div className="space-y-4">
                   {[...appointments]
+                    .filter(a => a.status === 'scheduled')
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map((appointment) => (
-                    <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{appointment.doctorName}</h4>
-                          <p className="text-gray-600">{appointment.specialization}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span className="flex items-center space-x-1">
-                              <Calendar className="h-4 w-4" />
-                              <span>{t('common.date')}: {appointment.date}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Clock className="h-4 w-4" />
-                              <span>{t('common.time')}: {appointment.time}</span>
-                            </span>
+                      <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{appointment.doctorName}</h4>
+                            <p className="text-gray-600">{appointment.specialization}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>{t('common.date')}: {appointment.date}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Clock className="h-4 w-4" />
+                                <span>{t('common.time')}: {appointment.time}</span>
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        {appointment.status === 'scheduled' && (
                           <div className="flex space-x-2">
                             <button
-                              className={`bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors${appointment.status !== 'scheduled' ? ' cursor-not-allowed bg-gray-300 text-gray-500' : ''}`}
-                              disabled={appointment.status !== 'scheduled'}
-                              onClick={() => appointment.status === 'scheduled' ? handleStartCall(appointment) : undefined}
+                              className={`bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors`}
+                              onClick={() => handleStartCall(appointment)}
                             >
                               {t('doctor.startCall')}
                             </button>
-      <VideoCallModal
-        isOpen={showVideoCall && !!videoCallRoomId}
-        onClose={() => {
-          setShowVideoCall(false);
-          setVideoCallRoomId(null);
-        }}
-        roomId={videoCallRoomId || ''}
-      />
+                            <VideoCallModal
+                              isOpen={showVideoCall && !!videoCallRoomId}
+                              onClose={() => {
+                                setShowVideoCall(false);
+                                setVideoCallRoomId(null);
+                              }}
+                              roomId={videoCallRoomId || ''}
+                            />
                             <button 
                               onClick={() => handleRescheduleAppointment(appointment)}
                               className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
@@ -362,10 +362,39 @@ export default function PatientDashboard() {
                               Cancel
                             </button>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                </div>
+                {/* Completed Appointments */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-gray-900">Completed Appointments</h3>
+                  <div className="space-y-4">
+                    {[...appointments]
+                      .filter(a => a.status === 'completed')
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((appointment) => (
+                        <div key={appointment.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-semibold text-gray-900">{appointment.doctorName}</h4>
+                              <p className="text-gray-600">{appointment.specialization}</p>
+                              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                                <span className="flex items-center space-x-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{t('common.date')}: {appointment.date}</span>
+                                </span>
+                                <span className="flex items-center space-x-1">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{t('common.time')}: {appointment.time}</span>
+                                </span>
+                              </div>
+                            </div>
+                            <span className="px-3 py-1 rounded bg-green-200 text-green-800 text-xs font-semibold">Completed</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             )}
