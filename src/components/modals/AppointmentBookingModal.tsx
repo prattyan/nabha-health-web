@@ -227,31 +227,35 @@ export default function AppointmentBookingModal({
                   <p className="text-sm">Please try again later or contact support</p>
                 </div>
               ) : (
-                availableDoctors.map((doctor) => (
-                  <div
-                    key={doctor.id}
-                    onClick={() => handleDoctorSelect(doctor)}
-                    className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{doctor.firstName} {doctor.lastName}</h4>
-                        <p className="text-gray-600">{doctor.specialization}</p>
-                        <div className="flex items-center space-x-4 mt-2 text-sm">
-                          <span className="text-green-600">₹{doctor.consultationFee || 500}</span>
-                          <span className="text-yellow-600">★ {doctor.rating || 4.5}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            doctor.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {doctor.isActive ? 'Available' : 'Busy'}
-                          </span>
+                availableDoctors.map((doctor) => {
+                  const hasAvailableDates = Array.isArray(doctor.availableDates) && doctor.availableDates.length > 0;
+                  // If no available dates, mark as unavailable
+                  return (
+                    <div
+                      key={doctor.id}
+                      onClick={() => hasAvailableDates ? handleDoctorSelect(doctor) : undefined}
+                      className={`border border-gray-200 rounded-lg p-4 transition-colors ${hasAvailableDates ? 'cursor-pointer hover:border-blue-500 hover:bg-blue-50' : 'bg-gray-100 cursor-not-allowed opacity-60'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{doctor.firstName} {doctor.lastName}</h4>
+                          <p className="text-gray-600">{doctor.specialization}</p>
+                          <div className="flex items-center space-x-4 mt-2 text-sm">
+                            <span className="text-green-600">₹{doctor.consultationFee || 500}</span>
+                            <span className="text-yellow-600">★ {doctor.rating || 4.5}</span>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              hasAvailableDates 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {hasAvailableDates ? 'Available' : 'Unavailable'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
