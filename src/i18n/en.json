@@ -1,0 +1,13 @@
+{
+  "app": {
+    "title": "Nabha Health"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout"
+  },
+  "common": {
+    "loading": "Loading..."
+  }
+}
