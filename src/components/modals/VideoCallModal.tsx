@@ -1,4 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import type { Socket } from 'socket.io-client';
+import { createSignalingSocket } from '../../services/socketService';
 
 interface VideoCallModalProps {
   isOpen: boolean;
@@ -11,65 +13,144 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [remoteConnected, setRemoteConnected] = useState(false);
+  
+  // Refs for stable access in callbacks
+  const isInitiatorRef = useRef(false);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const roomReadyRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) return;
-    // Connect to signaling server
-    wsRef.current = new WebSocket('ws://localhost:8080');
-    wsRef.current.onmessage = async (event) => {
-      const { type, payload } = JSON.parse(event.data);
-      if (!peerConnectionRef.current) return;
-      if (type === 'offer') {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-        const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
-        wsRef.current?.send(JSON.stringify({ roomId, type: 'answer', payload: answer }));
-      } else if (type === 'answer') {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-      } else if (type === 'ice') {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload));
-      }
-    };
 
-    // Get local media
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
+    let socket: Socket | undefined;
+    let pc: RTCPeerConnection | undefined;
+
+    const startCallSequence = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-        // Setup peer connection
-        const pc = new RTCPeerConnection();
+
+        pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        });
         peerConnectionRef.current = pc;
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+        // Add local tracks to peer connection
+        stream.getTracks().forEach(track => pc?.addTrack(track, stream));
+
+        // Handle remote stream
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
             setRemoteConnected(true);
           }
         };
+
+        // Handle ICE candidates
         pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            wsRef.current?.send(JSON.stringify({ roomId, type: 'ice', payload: event.candidate }));
+          if (event.candidate && socket) {
+            socket.emit('ice-candidate', { roomId, candidate: event.candidate });
           }
         };
-        // If first to join, create offer
-        wsRef.current!.onopen = async () => {
-          // Wait a moment for other peer to join
-          setTimeout(async () => {
-            if (pc.signalingState === 'stable') {
+
+        socket = createSignalingSocket();
+        socketRef.current = socket;
+
+        // --- Socket Event Handlers ---
+
+        socket.on('connect', () => {
+          socket?.emit('join-room', { roomId });
+        });
+
+        socket.on('room-joined', ({ isInitiator: initiator }) => {
+          isInitiatorRef.current = initiator;
+        });
+
+        socket.on('room-ready', async () => {
+          roomReadyRef.current = true;
+          
+          if (isInitiatorRef.current && pc) {
+            try {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              wsRef.current?.send(JSON.stringify({ roomId, type: 'offer', payload: offer }));
+              socket?.emit('offer', { roomId, offer });
+            } catch (err) {
+              console.error('Error creating offer:', err);
             }
-          }, 1000);
-        };
-      })
-      .catch(() => setError('Could not access camera/microphone'));
+          }
+        });
 
+        socket.on('offer', async ({ offer }) => {
+          if (!pc) return;
+          
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket?.emit('answer', { roomId, answer });
+
+            // Process any queued candidates
+            while (pendingCandidatesRef.current.length > 0) {
+              const candidate = pendingCandidatesRef.current.shift();
+              if (candidate) {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              }
+            }
+          } catch (err) {
+            console.error('Error handling offer:', err);
+          }
+        });
+
+        socket.on('answer', async ({ answer }) => {
+          if (!pc) return;
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (err) {
+            console.error('Error handling answer:', err);
+          }
+        });
+
+        socket.on('ice-candidate', async ({ candidate }) => {
+          if (!pc) return;
+          try {
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+              // Queue candidate if remote description isn't set yet
+              pendingCandidatesRef.current.push(candidate);
+            }
+          } catch (err) {
+            console.error('Error adding ice candidate:', err);
+          }
+        });
+
+        socket.on('peer-disconnected', () => {
+          setRemoteConnected(false);
+        });
+
+        // Finally, connect the socket
+        socket.connect();
+
+      } catch (err) {
+        console.error('Setup error:', err);
+        setError('Could not access camera/microphone');
+      }
+    };
+
+    void startCallSequence();
+
+    // Cleanup function
     return () => {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -77,9 +158,12 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
-      if (wsRef.current) {
-        wsRef.current.close();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
+      pendingCandidatesRef.current = [];
+      roomReadyRef.current = false;
+      isInitiatorRef.current = false;
     };
   }, [isOpen, roomId]);
 
@@ -90,7 +174,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
         {error && <div className="text-red-600 mb-2">{error}</div>}
         <div className="flex space-x-4 mb-4">
           <div>
-            <video ref={localVideoRef} autoPlay playsInline muted className="w-64 h-48 bg-black rounded-lg" />
+            <video ref={localVideoRef} autoPlay playsInline muted className="w-64 h-48 bg-black rounded-lg transform -scale-x-100" />
             <div className="text-center text-xs mt-1">You</div>
           </div>
           <div>
@@ -110,7 +194,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
             End Call
           </button>
         </div>
-        <div className="mt-4 text-xs text-gray-500">* Demo only: Add signaling for real calls</div>
+        <div className="mt-4 text-xs text-gray-500">Signaling connected via Socket.IO</div>
       </div>
     </div>
   ) : null;
