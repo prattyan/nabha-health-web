@@ -2,15 +2,16 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
-// NOTE: Replace the config values below with your Firebase project settings.
+// NOTE: Replace the config values below with your own Firebase project settings.
 // This file is in /public and is not processed by Vite, so import.meta.env is not available.
+// Copy the "Firebase SDK snippet" (config only) from your Firebase Console and paste it here locally.
 firebase.initializeApp({
-  apiKey: 'AIzaSyCPyZt5F2YCq8Ox_Eec1MJGog34D23JzA0',
-  authDomain: 'nabha-rural-healthcare.firebaseapp.com',
-  projectId: 'nabha-rural-healthcare',
-  storageBucket: 'nabha-rural-healthcare.firebasestorage.app',
-  messagingSenderId: '875810817064',
-  appId: '1:875810817064:web:92d65252f6aaa057d3611d'
+  apiKey: 'YOUR_FIREBASE_API_KEY',
+  authDomain: 'your-project-id.firebaseapp.com',
+  projectId: 'your-project-id',
+  storageBucket: 'your-project-id.appspot.com',
+  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+  appId: 'YOUR_FIREBASE_APP_ID'
 });
 
 const messaging = firebase.messaging();
