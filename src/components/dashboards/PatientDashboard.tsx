@@ -106,6 +106,10 @@ export default function PatientDashboard() {
     setShowAppointmentBooking(false);
   };
 
+  /**
+   * Triggers a local reminder notification for the next scheduled appointment.
+   * Finds the upcoming appointment and formats the notification body.
+   */
   const handleAppointmentReminderNotification = () => {
     const nextAppointment = appointments.find(apt => apt.status === 'scheduled');
     const details = nextAppointment
@@ -115,6 +119,10 @@ export default function PatientDashboard() {
     showLocalNotification('appointmentReminder', { body: details });
   };
 
+  /**
+   * Triggers a local notification that a prescription is ready.
+   * Uses the most recent prescription for the notification details.
+   */
   const handlePrescriptionReadyNotification = () => {
     const latestPrescription = prescriptions[0];
     const details = latestPrescription

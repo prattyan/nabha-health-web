@@ -119,12 +119,20 @@ export default function DoctorDashboard() {
     }
   };
 
+  /**
+   * Triggers a local notification to alert that the doctor is available.
+   * This is a simulation trigger for potential backend integration.
+   */
   const handleDoctorAvailabilityNotification = () => {
     showLocalNotification('doctorAvailability', {
       body: `Dr. ${user?.firstName ?? ''} ${user?.lastName ?? ''} is available for consultation.`.trim()
     });
   };
 
+  /**
+   * Triggers a local notification for an urgent triage case.
+   * Intended to be connected to real-time triage updates.
+   */
   const handleUrgentTriageNotification = () => {
     showLocalNotification('urgentTriageAlert', {
       body: 'An urgent triage case has been flagged. Please review immediately.'
