@@ -21,7 +21,12 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
+/**
+ * Handles background messages received while the app is not active.
+ * Displays a system notification using the Service Worker registration.
+ * @param {Object} payload - The message payload from FCM.
+ */
+const handleBackgroundMessage = (payload) => {
   const title = payload.notification?.title || 'New Notification';
   const options = {
     body: payload.notification?.body || 'You have a new update.',
@@ -29,4 +34,6 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   self.registration.showNotification(title, options);
-});
+};
+
+messaging.onBackgroundMessage(handleBackgroundMessage);
