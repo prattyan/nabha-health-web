@@ -9,6 +9,14 @@ interface UserProfileProps {
   onClose: () => void;
 }
 
+/**
+ * UserProfile Component
+ * Displays the user's profile information, role, and settings.
+ * Allows users to enable push notifications and logout.
+ * 
+ * @param isOpen - Whether the modal is currently open.
+ * @param onClose - Handler to close the modal.
+ */
 export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
   const { user, logout } = useAuth();
   const { t } = useLanguage();

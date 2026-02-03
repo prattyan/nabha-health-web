@@ -27,10 +27,20 @@ const getTokenStorageKey = (userId?: string) => {
   return `fcmToken:${userId ?? 'default'}`;
 };
 
+/**
+ * Retrieves the stored FCM token for the given user from local storage.
+ * @param userId - The ID of the user (optional). If not provided, 'default' is used.
+ * @returns The stored FCM token string, or null if not found.
+ */
 export const getStoredFcmToken = (userId?: string) => {
   return localStorage.getItem(getTokenStorageKey(userId));
 };
 
+/**
+ * Initializes the Firebase Messaging instance if the configuration is present.
+ * This function also initializes the Firebase app if it hasn't been done yet.
+ * @returns The Firebase Messaging instance, or null if configuration is missing.
+ */
 export const initializeFirebaseMessaging = () => {
   if (!isFirebaseConfigured()) {
     console.warn('Firebase config is missing. Set VITE_FIREBASE_* environment variables.');
@@ -48,6 +58,11 @@ export const initializeFirebaseMessaging = () => {
   return messaging;
 };
 
+/**
+ * Registers the Firebase Messaging service worker.
+ * Checks if the browser supports service workers before attempting registration.
+ * @returns A promise that resolves to the ServiceWorkerRegistration, or null if unsupported.
+ */
 export const registerNotificationServiceWorker = async () => {
   if (!('serviceWorker' in navigator)) {
     return null;
@@ -56,6 +71,11 @@ export const registerNotificationServiceWorker = async () => {
   return navigator.serviceWorker.register('/firebase-messaging-sw.js');
 };
 
+/**
+ * Requests notification permission from the user's browser.
+ * @returns A promise that resolves to the NotificationPermission string ('granted', 'denied', or 'default').
+ * Returns 'unsupported' if the browser does not support notifications.
+ */
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     return 'unsupported';
@@ -65,6 +85,13 @@ export const requestNotificationPermission = async () => {
   return permission;
 };
 
+/**
+ * Enables push notifications for the user.
+ * Requests permission, initializes messaging, registers service worker, and retrieves the FCM token.
+ * The token is then stored in local storage for the specified user.
+ * @param userId - The ID of the user (optional).
+ * @returns An object containing the permission status and the FCM token (if successful).
+ */
 export const enablePushNotifications = async (userId?: string) => {
   const permission = await requestNotificationPermission();
 
@@ -116,6 +143,13 @@ const notificationTemplates: Record<NotificationType, { title: string; body: str
   }
 };
 
+/**
+ * Triggers a local browser notification.
+ * Checks for permission and requests it if not already granted/denied.
+ * @param type - The type of notification to display (uses predefined templates).
+ * @param overrides - Optional overrides for the title, body, and icon.
+ * @returns True if the notification was shown, false otherwise.
+ */
 export const showLocalNotification = async (
   type: NotificationType,
   overrides?: Partial<{ title: string; body: string; icon: string }>
@@ -144,6 +178,11 @@ export const showLocalNotification = async (
   return true;
 };
 
+/**
+ * Subscribes to foreground message events from Firebase Cloud Messaging.
+ * @param handler - A callback function to handle the incoming message payload.
+ * @returns A unsubscribe function, or undefined if messaging is not initialized.
+ */
 export const subscribeToForegroundMessages = (handler: (payload: MessagePayload) => void) => {
   const messagingInstance = initializeFirebaseMessaging();
 

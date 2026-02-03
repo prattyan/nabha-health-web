@@ -1,4 +1,9 @@
 /* eslint-disable no-undef */
+/**
+ * Firebase Messaging Service Worker
+ * Handles background notifications when the app is not in focus or closed.
+ * It initializes the Firebase app (compat version) and listens for background messages.
+ */
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
