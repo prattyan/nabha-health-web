@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { RBACProvider } from './contexts/RBACContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Header from './components/Header';
 import LoginModal from './components/auth/LoginModal';
@@ -7,6 +8,9 @@ import RegisterModal from './components/auth/RegisterModal';
 import PatientDashboard from './components/dashboards/PatientDashboard';
 import DoctorDashboard from './components/dashboards/DoctorDashboard';
 import HealthWorkerDashboard from './components/dashboards/HealthWorkerDashboard';
+import PharmacyDashboard from './components/dashboards/PharmacyDashboard';
+import AdminDashboard from './components/dashboards/AdminDashboard';
+import RBACTester from './components/debug/RBACTester';
 import Hero from './components/Hero';
 import ProblemStatement from './components/ProblemStatement';
 import Solution from './components/Solution';
@@ -32,6 +36,22 @@ function AppContent() {
 
   // Show dashboard if user is authenticated
   if (isAuthenticated && user) {
+    // Check for RBAC test route
+    if (window.location.hash === '#rbac-test') {
+      return (
+        <div className="min-h-screen">
+          <Header 
+            mobileMenuOpen={mobileMenuOpen} 
+            setMobileMenuOpen={setMobileMenuOpen}
+            onLoginClick={() => setShowLoginModal(true)}
+          />
+          <div className="pt-16">
+            <RBACTester />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen">
         <Header 
@@ -42,6 +62,8 @@ function AppContent() {
         {user.role === 'patient' && <PatientDashboard />}
         {user.role === 'doctor' && <DoctorDashboard />}
         {user.role === 'healthworker' && <HealthWorkerDashboard />}
+        {user.role === 'pharmacy' && <PharmacyDashboard />}
+        {user.role === 'admin' && <AdminDashboard />}
       </div>
     );
   }
@@ -80,7 +102,9 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <AppContent />
+        <RBACProvider>
+          <AppContent />
+        </RBACProvider>
       </AuthProvider>
     </LanguageProvider>
   );
