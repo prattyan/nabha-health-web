@@ -84,8 +84,8 @@ export class APIMiddleware {
         };
       }
 
-      // Check RBAC permissions
-      const accessCheck = this.rbacService.checkAPIAccess(request.userId, request.path, request.method);
+      // Check RBAC permissions - use the matched endpoint pattern, not the raw request path
+      const accessCheck = this.rbacService.checkAPIAccess(request.userId, endpoint.path, request.method);
       if (!accessCheck.allowed) {
         return {
           allowed: false,

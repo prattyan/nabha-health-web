@@ -13,6 +13,14 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      // Check if user is active and registration is complete before RBAC initialization
+      if (!user.isActive || !user.registrationComplete) {
+        console.log('RBAC initialization skipped for inactive or incomplete user:', user.id);
+        setUserPermissions([]);
+        setUserRoles([]);
+        return;
+      }
+
       // Ensure RBAC role is assigned immediately and synchronously
       rbacService.migrateUserToRBAC(user);
       
@@ -45,6 +53,12 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkPermission = (permission: Permission, resource?: string): boolean => {
     if (!user) return false;
+    
+    // Short-circuit for inactive or incomplete users
+    if (!user.isActive || !user.registrationComplete) {
+      return false;
+    }
+    
     return rbacService.checkPermission(user.id, permission, resource);
   };
 

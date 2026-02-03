@@ -151,4 +151,3 @@ export interface RegisterData {
   adminLevel?: 'system' | 'hospital' | 'regional';
   managedFacilities?: string[];
 }
-}

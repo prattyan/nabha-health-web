@@ -263,6 +263,18 @@ export class AuthService {
         return { success: false, message: 'Invalid email or password' };
       }
 
+      // Check if user is active
+      if (!user.isActive) {
+        console.log(`Login rejected for inactive user: ${user.email}`);
+        return { success: false, message: 'Account is deactivated. Please contact administrator.' };
+      }
+
+      // Check if registration is complete (optional)
+      if (!user.registrationComplete) {
+        console.log(`Login rejected for incomplete registration: ${user.email}`);
+        return { success: false, message: 'Registration is incomplete. Please complete your profile.' };
+      }
+
       // Store current user
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 

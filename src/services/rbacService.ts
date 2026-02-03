@@ -136,8 +136,10 @@ export class RBACService {
       }
 
       const role = roles[roleIndex];
-      if (role.isSystemRole && (updates.name || updates.isSystemRole === false)) {
-        return { success: false, message: 'Cannot modify system role name or system status' };
+      
+      // Reject any updates to system roles
+      if (role.isSystemRole) {
+        return { success: false, message: 'Cannot modify system role' };
       }
 
       roles[roleIndex] = {
@@ -285,6 +287,21 @@ export class RBACService {
   }
 
   checkPermission(userId: string, permission: Permission, resource?: string): boolean {
+    // Check if user has an active role assignment
+    const userRole = this.getUserRole(userId);
+    if (!userRole || !userRole.isActive) {
+      // Log permission check for audit
+      this.logAudit({
+        userId,
+        action: 'check_permission',
+        resource: resource || 'unknown',
+        permission,
+        success: false,
+        details: { requestedPermission: permission, resource, reason: 'No active role' }
+      });
+      return false;
+    }
+
     const userPermissions = this.getUserPermissions(userId);
     const hasPermission = userPermissions.includes(permission);
 
@@ -407,13 +424,17 @@ export class RBACService {
       const userRoles = this.getUserRoles();
       let updated = false;
 
+      // Toggle the active status of user roles to enforce deactivation
       userRoles.forEach(ur => {
-        if (ur.userId === userId && ur.isActive) {
-          // Don't change the role assignment, just track if user should have access
-          // The actual access control happens in checkPermission method
+        if (ur.userId === userId) {
+          ur.isActive = isActive; // Actually change the role active status
           updated = true;
         }
       });
+
+      if (updated) {
+        this.saveUserRoles(userRoles);
+      }
 
       // Log the status change
       this.logAudit({
