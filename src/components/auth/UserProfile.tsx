@@ -23,6 +23,10 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
   const [notificationStatus, setNotificationStatus] = React.useState<'idle' | 'enabled' | 'denied' | 'unsupported' | 'error'>('idle');
   const [isEnablingNotifications, setIsEnablingNotifications] = React.useState(false);
 
+  /**
+   * Handles the user logout process.
+   * Logs out the user via the auth context and closes the profile modal.
+   */
   const handleLogout = () => {
     logout();
     onClose();
@@ -48,6 +52,10 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
     setNotificationStatus('idle');
   }, [user?.id]);
 
+  /**
+   * Enables push notifications for the current user.
+   * Requests permission and retrieves the FCM token, updating the status state.
+   */
   const handleEnableNotifications = async () => {
     try {
       setIsEnablingNotifications(true);
@@ -72,6 +80,10 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
 
   if (!isOpen || !user) return null;
 
+  /**
+   * Returns the appropriate icon component based on the user's role.
+   * @returns A React Node containing the icon.
+   */
   const getRoleIcon = () => {
     switch (user.role) {
       case 'doctor':
@@ -83,6 +95,10 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
     }
   };
 
+  /**
+   * Returns the color classes for the role badge based on the user's role.
+   * @returns A string of Tailwind CSS classes.
+   */
   const getRoleColor = () => {
     switch (user.role) {
       case 'doctor':
