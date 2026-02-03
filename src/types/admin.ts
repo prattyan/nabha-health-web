@@ -73,3 +73,23 @@ export interface ActivityLog {
   timestamp: string;
   details?: string;
 }
+
+export interface AdminTask {
+  id: string;
+  title: string;
+  description: string;
+  category: 'monitoring' | 'maintenance' | 'reporting' | 'compliance';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+  assignedTo: string; // admin user ID
+  createdAt: string;
+  dueDate: string;
+  completedAt?: string;
+  notes?: string;
+  checklist?: Array<{
+    id: string;
+    item: string;
+    completed: boolean;
+  }>;
+}
+

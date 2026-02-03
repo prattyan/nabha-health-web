@@ -6,6 +6,11 @@ import { Settings, LogOut, RefreshCw } from 'lucide-react';
 import PatientLoadCard from '../admin/PatientLoadCard';
 import DoctorAvailabilityCard from '../admin/DoctorAvailabilityCard';
 import SystemHealthCard from '../admin/SystemHealthCard';
+import PharmacyStockCard from '../admin/PharmacyStockCard';
+import TriageLogsCard from '../admin/TriageLogsCard';
+import DataManagementSection from '../admin/DataManagementSection';
+import ActivityLogsCard from '../admin/ActivityLogsCard';
+import AdminTasksCard from '../admin/AdminTasksCard';
 import type { PatientLoadMetrics, DoctorMetrics, SystemMetrics } from '../../types/admin';
 
 export default function AdminDashboard() {
@@ -13,7 +18,7 @@ export default function AdminDashboard() {
   const authService = AuthService.getInstance();
   const prescriptionService = PrescriptionService.getInstance();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'overview' | 'users' | 'system' | 'pharmacy' | 'triage' | 'data' | 'activity'>('tasks');
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
 
@@ -94,11 +99,21 @@ export default function AdminDashboard() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-white rounded-lg shadow-sm mb-8">
-          <div className="flex border-b">
+        <div className="bg-white rounded-lg shadow-sm mb-8 overflow-x-auto">
+          <div className="flex border-b min-w-max">
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'tasks'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              My Tasks
+            </button>
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-6 py-4 font-medium text-sm ${
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'border-b-2 border-indigo-600 text-indigo-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -108,7 +123,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-6 py-4 font-medium text-sm ${
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'border-b-2 border-indigo-600 text-indigo-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -118,13 +133,53 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('system')}
-              className={`px-6 py-4 font-medium text-sm ${
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'system'
                   ? 'border-b-2 border-indigo-600 text-indigo-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               System
+            </button>
+            <button
+              onClick={() => setActiveTab('pharmacy')}
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'pharmacy'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Pharmacy
+            </button>
+            <button
+              onClick={() => setActiveTab('triage')}
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'triage'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Triage
+            </button>
+            <button
+              onClick={() => setActiveTab('data')}
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'data'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Data Management
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'activity'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Activity Logs
             </button>
           </div>
         </div>
@@ -147,6 +202,11 @@ export default function AdminDashboard() {
             <span>Logout</span>
           </button>
         </div>
+
+        {/* My Tasks Tab */}
+        {activeTab === 'tasks' && (
+          <AdminTasksCard adminId={user?.id || ''} isLoading={isLoading} />
+        )}
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
@@ -301,7 +361,28 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* Pharmacy Tab */}
+        {activeTab === 'pharmacy' && (
+          <PharmacyStockCard isLoading={isLoading} />
+        )}
+
+        {/* Triage Tab */}
+        {activeTab === 'triage' && (
+          <TriageLogsCard isLoading={isLoading} />
+        )}
+
+        {/* Data Management Tab */}
+        {activeTab === 'data' && (
+          <DataManagementSection isLoading={isLoading} />
+        )}
+
+        {/* Activity Logs Tab */}
+        {activeTab === 'activity' && (
+          <ActivityLogsCard isLoading={isLoading} />
+        )}
       </div>
     </div>
   );
 }
+
