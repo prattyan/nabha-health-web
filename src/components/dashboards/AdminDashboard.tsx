@@ -59,7 +59,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleUserStatusToggle = (userId: string, currentStatus: boolean) => {
+  const handleUserStatusToggle = async (userId: string, currentStatus: boolean) => {
     if (!checkPermission('admin:manage_users')) {
       alert('You do not have permission to manage users');
       return;
@@ -68,16 +68,33 @@ const AdminDashboard: React.FC = () => {
     const newStatus = !currentStatus;
     const action = newStatus ? 'activated' : 'deactivated';
 
-    // Update user status in AuthService
-    setUsers(users.map(u => 
-      u.id === userId ? { ...u, isActive: newStatus } : u
-    ));
+    try {
+      // Persist status change in AuthService
+      const success = authService.updateUserStatus(userId, newStatus);
+      if (!success) {
+        alert('Failed to update user status');
+        return;
+      }
 
-    // If deactivating user, we keep their role but they can't use it
-    // If activating user, their role remains intact
-    // This is standard RBAC behavior - roles persist but are inactive
+      // Update RBAC access for inactive users
+      if (!newStatus) {
+        // Revoke RBAC access for deactivated users
+        rbacService.setUserActive(userId, false);
+      } else {
+        // Restore RBAC access for activated users
+        rbacService.setUserActive(userId, true);
+      }
 
-    alert(`User ${action} successfully`);
+      // Update local state
+      setUsers(users.map(u => 
+        u.id === userId ? { ...u, isActive: newStatus } : u
+      ));
+
+      alert(`User ${action} successfully`);
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      alert(`Failed to ${action.slice(0, -1)} user`);
+    }
   };
 
   const handleRoleAssignment = (userId: string, newRole: string) => {

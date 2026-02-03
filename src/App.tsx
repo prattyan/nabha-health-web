@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { RBACProvider } from './contexts/RBACContext';
+import { RBACProvider, useRBAC } from './contexts/RBACContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Header from './components/Header';
 import LoginModal from './components/auth/LoginModal';
@@ -20,6 +20,7 @@ import Footer from './components/Footer';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
+  const { checkPermission } = useRBAC();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -36,8 +37,29 @@ function AppContent() {
 
   // Show dashboard if user is authenticated
   if (isAuthenticated && user) {
-    // Check for RBAC test route
+    // Check for RBAC test route - restrict to admins only
     if (window.location.hash === '#rbac-test') {
+      // Only allow admin users to access RBAC tester
+      if (user.role !== 'admin' && !checkPermission('admin:view_system_stats')) {
+        // Redirect non-admins away from RBAC tester
+        window.location.hash = '';
+        return (
+          <div className="min-h-screen">
+            <Header 
+              mobileMenuOpen={mobileMenuOpen} 
+              setMobileMenuOpen={setMobileMenuOpen}
+              onLoginClick={() => setShowLoginModal(true)}
+            />
+            <div className="pt-16 flex items-center justify-center">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h2>
+                <p className="text-gray-600">You need admin privileges to access the RBAC tester.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="min-h-screen">
           <Header 

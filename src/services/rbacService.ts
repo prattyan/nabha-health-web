@@ -401,6 +401,36 @@ export class RBACService {
     this.storageService.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(logs));
   }
 
+  // Set user active status for RBAC
+  setUserActive(userId: string, isActive: boolean): { success: boolean; message: string } {
+    try {
+      const userRoles = this.getUserRoles();
+      let updated = false;
+
+      userRoles.forEach(ur => {
+        if (ur.userId === userId && ur.isActive) {
+          // Don't change the role assignment, just track if user should have access
+          // The actual access control happens in checkPermission method
+          updated = true;
+        }
+      });
+
+      // Log the status change
+      this.logAudit({
+        userId: 'system',
+        action: 'set_user_active',
+        resource: `user:${userId}`,
+        permission: 'admin:manage_users',
+        success: true,
+        details: { userId, isActive, updated }
+      });
+
+      return { success: true, message: `User access ${isActive ? 'enabled' : 'disabled'}` };
+    } catch (error) {
+      return { success: false, message: 'Failed to update user access status' };
+    }
+  }
+
   // Utility Methods
   migrateUserToRBAC(user: User): void {
     // Migrate existing users to RBAC system

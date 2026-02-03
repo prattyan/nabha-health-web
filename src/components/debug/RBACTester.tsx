@@ -40,6 +40,12 @@ const RBACTester: React.FC = () => {
   };
 
   const runRBACTests = async () => {
+    // Guard: Only admins can run RBAC tests
+    if (!currentUser.roles.includes('admin')) {
+      alert('You do not have permission to run RBAC tests.');
+      return;
+    }
+
     setIsRunning(true);
     setTestResults([]);
 
@@ -93,6 +99,7 @@ const RBACTester: React.FC = () => {
   };
 
   const permissionTests = testCurrentUserPermissions();
+  const canRunTests = currentUser.roles.includes('admin');
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -109,8 +116,13 @@ const RBACTester: React.FC = () => {
           </div>
           <button
             onClick={runRBACTests}
-            disabled={isRunning}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            disabled={isRunning || !canRunTests}
+            className={`px-4 py-2 rounded-md flex items-center ${
+              canRunTests 
+                ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            title={!canRunTests ? 'Admin permission required to run tests' : ''}
           >
             <Play className="h-4 w-4 mr-2" />
             {isRunning ? 'Running Tests...' : 'Run RBAC Tests'}
