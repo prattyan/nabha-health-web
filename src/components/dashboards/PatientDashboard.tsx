@@ -53,9 +53,9 @@ export default function PatientDashboard() {
     if (user) {
       loadPatientData();
     }
-  }, [user]);
+  }, [user, loadPatientData]);
 
-  const loadPatientData = () => {
+  const loadPatientData = React.useCallback(() => {
     // TODO: Load medicine reminders from prescriptions or medication management service
     // For now, set sample reminders
     setMedicineReminders([
@@ -69,7 +69,7 @@ export default function PatientDashboard() {
     const patientPrescriptions = prescriptionService.getPrescriptionsByPatient(user.id);
     setAppointments(patientAppointments);
     setPrescriptions(patientPrescriptions);
-  };
+  }, [user, prescriptionService]);
 
   const handleViewPrescription = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
@@ -99,7 +99,7 @@ export default function PatientDashboard() {
     }
   };
 
-  const handleAppointmentBooked = (appointment: Appointment) => {
+  const handleAppointmentBooked = () => {
     // Reload appointments after booking
     loadPatientData();
     setShowAppointmentBooking(false);

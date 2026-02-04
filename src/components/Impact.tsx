@@ -44,18 +44,58 @@ const useIntersectionObserver = (threshold = 0.3) => {
       { threshold }
     );
     
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
+    const currentElement = elementRef.current;
+    if (currentElement) {
+      observer.observe(currentElement);
     }
     
     return () => {
-      if (elementRef.current) {
-        observer.unobserve(elementRef.current);
+      if (currentElement) {
+        observer.unobserve(currentElement);
       }
     };
   }, [threshold]);
   
   return { elementRef, isVisible };
+};
+
+interface Achievement {
+  icon: React.ElementType;
+  title: string;
+  value: number;
+  suffix: string;
+  description: string;
+  color: string;
+}
+
+const AchievementItem = ({ achievement, index, isVisible, getColorClasses, getValueColor }: {
+  achievement: Achievement;
+  index: number;
+  isVisible: boolean;
+  getColorClasses: (c: string) => string;
+  getValueColor: (c: string) => string;
+}) => {
+  const animatedValue = useCountUp(achievement.value, 0, 2000 + index * 200, isVisible);
+
+  return (
+    <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${getColorClasses(achievement.color)}`}>
+        <achievement.icon className="h-8 w-8" />
+      </div>
+      
+      <h3 className={`text-4xl font-bold mb-2 ${getValueColor(achievement.color)} font-mono`}>
+        {animatedValue.toLocaleString()}{achievement.suffix}
+      </h3>
+      
+      <h4 className="text-xl font-semibold text-gray-900 mb-3">
+        {achievement.title}
+      </h4>
+      
+      <p className="text-gray-600 leading-relaxed">
+        {achievement.description}
+      </p>
+    </div>
+  );
 };
 
 export default function Impact() {
@@ -161,29 +201,16 @@ export default function Impact() {
 
         {/* Achievement Cards */}
         <div ref={elementRef} className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-          {achievements.map((achievement, index) => {
-            const animatedValue = useCountUp(achievement.value, 0, 2000 + index * 200, isVisible);
-            
-            return (
-              <div key={index} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${getColorClasses(achievement.color)}`}>
-                  <achievement.icon className="h-8 w-8" />
-                </div>
-                
-                <h3 className={`text-4xl font-bold mb-2 ${getValueColor(achievement.color)} font-mono`}>
-                  {animatedValue.toLocaleString()}{achievement.suffix}
-                </h3>
-                
-                <h4 className="text-xl font-semibold text-gray-900 mb-3">
-                  {achievement.title}
-                </h4>
-                
-                <p className="text-gray-600 leading-relaxed">
-                  {achievement.description}
-                </p>
-              </div>
-            );
-          })}
+          {achievements.map((achievement, index) => (
+            <AchievementItem 
+              key={index}
+              achievement={achievement}
+              index={index}
+              isVisible={isVisible}
+              getColorClasses={getColorClasses}
+              getValueColor={getValueColor}
+            />
+          ))}
         </div>
 
         {/* Vision for 2025 Section */}
@@ -193,8 +220,35 @@ export default function Impact() {
   );
 }
 
+interface VisionStat {
+  value: number;
+  suffix: string;
+  label: string;
+  description: string;
+}
+
+const VisionStatItem = ({ stat, index, visionVisible }: { stat: VisionStat, index: number, visionVisible: boolean }) => {
+  const animatedValue = useCountUp(stat.value, 0, 2500 + index * 300, visionVisible);
+
+  return (
+    <div className="text-center">
+      <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-8 hover:bg-white/30 transition-all duration-300">
+        <h4 className="text-4xl lg:text-5xl font-bold mb-2 text-white font-mono">
+          {animatedValue.toLocaleString()}{stat.suffix}
+        </h4>
+        <h5 className="text-xl font-semibold mb-3 text-blue-100">
+          {stat.label}
+        </h5>
+        <p className="text-blue-200 leading-relaxed">
+          {stat.description}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // Separate Vision Section Component for better organization
-function VisionSection({ visionStats, t }: { visionStats: any[], t: (key: string) => string }) {
+function VisionSection({ visionStats, t }: { visionStats: VisionStat[], t: (key: string) => string }) {
   const { elementRef: visionRef, isVisible: visionVisible } = useIntersectionObserver(0.2);
   
   return (
@@ -219,25 +273,14 @@ function VisionSection({ visionStats, t }: { visionStats: any[], t: (key: string
 
         {/* Vision Stats */}
         <div className="grid md:grid-cols-3 gap-8">
-          {visionStats.map((stat, index) => {
-            const animatedValue = useCountUp(stat.value, 0, 2500 + index * 300, visionVisible);
-            
-            return (
-              <div key={index} className="text-center">
-                <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-8 hover:bg-white/30 transition-all duration-300">
-                  <h4 className="text-4xl lg:text-5xl font-bold mb-2 text-white font-mono">
-                    {animatedValue.toLocaleString()}{stat.suffix}
-                  </h4>
-                  <h5 className="text-xl font-semibold mb-3 text-blue-100">
-                    {stat.label}
-                  </h5>
-                  <p className="text-blue-200 leading-relaxed">
-                    {stat.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+          {visionStats.map((stat, index) => (
+            <VisionStatItem 
+              key={index}
+              stat={stat}
+              index={index}
+              visionVisible={visionVisible}
+            />
+          ))}
         </div>
       </div>
     </div>

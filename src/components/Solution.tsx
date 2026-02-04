@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Video, Smartphone, Pill, Brain, Wifi, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -6,7 +6,7 @@ export default function Solution() {
   const { t } = useLanguage();
   const [currentFeature, setCurrentFeature] = useState(0);
 
-  const features = [
+  const features = useMemo(() => [
     {
       icon: Wifi,
       title: t('solution.feature1.title'),
@@ -67,20 +67,20 @@ export default function Solution() {
         t('solution.feature6.detail3')
       ]
     }
-  ];
+  ], [t]);
 
-  const nextFeature = () => {
+  const nextFeature = useCallback(() => {
     setCurrentFeature((prev) => (prev + 1) % features.length);
-  };
+  }, [features.length]);
 
-  const prevFeature = () => {
+  const prevFeature = useCallback(() => {
     setCurrentFeature((prev) => (prev - 1 + features.length) % features.length);
-  };
+  }, [features.length]);
 
   useEffect(() => {
     const interval = setInterval(nextFeature, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [nextFeature]);
 
   return (
     <section id="solution" className="py-20 bg-gradient-to-br from-slate-50 to-blue-50">

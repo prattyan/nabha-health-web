@@ -44,18 +44,58 @@ const useIntersectionObserver = (threshold = 0.3) => {
       { threshold }
     );
     
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
+    const currentElement = elementRef.current;
+    if (currentElement) {
+      observer.observe(currentElement);
     }
     
     return () => {
-      if (elementRef.current) {
-        observer.unobserve(elementRef.current);
+      if (currentElement) {
+        observer.unobserve(currentElement);
       }
     };
   }, [threshold]);
   
   return { elementRef, isVisible };
+};
+
+interface Stat {
+  icon: React.ElementType;
+  value: number;
+  suffix: string;
+  label: string;
+  color: string;
+}
+
+const StatItem = ({ stat, index, isVisible, getStatColor, getIconColor }: { 
+  stat: Stat; 
+  index: number; 
+  isVisible: boolean;
+  getStatColor: (c: string) => string;
+  getIconColor: (c: string) => string;
+}) => {
+  const animatedValue = useCountUp(stat.value, 0, 2000 + index * 300, isVisible);
+  
+  return (
+    <div className="text-center">
+      <div className={`${getStatColor(stat.color)} p-4 rounded-lg mb-3 inline-block`}>
+        <stat.icon className={`h-8 w-8 ${getIconColor(stat.color)}`} />
+      </div>
+      <h3 className="text-2xl font-bold text-gray-900 font-mono">
+        {animatedValue}{stat.suffix}
+      </h3>
+      <p className="text-gray-600">{stat.label}</p>
+    </div>
+  );
+};
+
+const StatValue = ({ value, duration, isVisible, suffix }: { value: number, duration: number, isVisible: boolean, suffix: string }) => {
+  const count = useCountUp(value, 0, duration, isVisible);
+  return (
+    <h3 className="text-2xl font-bold text-gray-900 font-mono">
+      {count}{suffix}
+    </h3>
+  );
 };
 
 export default function Hero() {
@@ -141,21 +181,16 @@ export default function Hero() {
           <div className="lg:pl-8">
             <div ref={elementRef} className="bg-white rounded-2xl shadow-xl p-8">
               <div className="grid grid-cols-2 gap-6">
-                {stats.slice(0, 2).map((stat, index) => {
-                  const animatedValue = useCountUp(stat.value, 0, 2000 + index * 300, isVisible);
-                  
-                  return (
-                    <div key={index} className="text-center">
-                      <div className={`${getStatColor(stat.color)} p-4 rounded-lg mb-3 inline-block`}>
-                        <stat.icon className={`h-8 w-8 ${getIconColor(stat.color)}`} />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900 font-mono">
-                        {animatedValue}{stat.suffix}
-                      </h3>
-                      <p className="text-gray-600">{stat.label}</p>
-                    </div>
-                  );
-                })}
+                {stats.slice(0, 2).map((stat, index) => (
+                  <StatItem 
+                    key={index} 
+                    stat={stat} 
+                    index={index} 
+                    isVisible={isVisible}
+                    getStatColor={getStatColor}
+                    getIconColor={getIconColor}
+                  />
+                ))}
                 <div className="text-center col-span-2">
                   <div className={`${getStatColor(stats[2].color)} p-4 rounded-lg mb-3 inline-block`}>
                     {(() => {
@@ -163,9 +198,12 @@ export default function Hero() {
                       return <IconComponent className={`h-8 w-8 ${getIconColor(stats[2].color)}`} />;
                     })()}
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 font-mono">
-                    {useCountUp(stats[2].value, 0, 2500, isVisible)}{stats[2].suffix}
-                  </h3>
+                  <StatValue 
+                    value={stats[2].value} 
+                    duration={2500} 
+                    isVisible={isVisible} 
+                    suffix={stats[2].suffix} 
+                  />
                   <p className="text-gray-600">{stats[2].label}</p>
                 </div>
               </div>

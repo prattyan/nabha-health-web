@@ -57,7 +57,7 @@ export default function DoctorDashboard() {
         setAvailableDates(authService.getDoctorAvailableDates(user.id));
       }
     }
-  }, [user]);
+  }, [user, loadDoctorData, authService]);
 
   const handleCompleteAppointment = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -89,14 +89,14 @@ export default function DoctorDashboard() {
     }
   };
 
-  const loadDoctorData = () => {
+  const loadDoctorData = React.useCallback(() => {
     if (user) {
       const doctorAppointments = prescriptionService.getAppointmentsByDoctor(user.id);
       const doctorPrescriptions = prescriptionService.getPrescriptionsByDoctor(user.id);
       setAppointments(doctorAppointments);
       setPrescriptions(doctorPrescriptions);
     }
-  };
+  }, [user, prescriptionService]);
 
   // Removed handleSlotAdded function
 
@@ -425,12 +425,13 @@ export default function DoctorDashboard() {
                               <button 
                                 className={`bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors${appointment.status !== 'scheduled' || appointment.date !== new Date().toLocaleDateString('en-CA') ? ' cursor-not-allowed bg-gray-300 text-gray-500' : ''}`}
                                 disabled={appointment.status !== 'scheduled' || appointment.date !== new Date().toLocaleDateString('en-CA')}
-                                onClick={() => {
-                                  if (appointment.status === 'scheduled' && appointment.date === new Date().toLocaleDateString('en-CA')) {
-                                    setVideoCallRoomId(appointment.id);
-                                    setShowVideoCall(true);
-                                  }
-                                }}
+                                  onClick={() => {
+                                    if (appointment.status === 'scheduled' && appointment.date === new Date().toLocaleDateString('en-CA')) {
+                                      handleStartCall(appointment.id);
+                                      setVideoCallRoomId(appointment.id);
+                                      setShowVideoCall(true);
+                                    }
+                                  }}
                               >
                                 Start Call
                               </button>
