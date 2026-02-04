@@ -1,7 +1,7 @@
 import React from 'react';
 import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage, Language } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
 
 interface HeaderProps {
@@ -54,7 +54,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       <button
                         key={lang.code}
                         onClick={() => {
-                          setLanguage(lang.code as any);
+                          setLanguage(lang.code as Language);
                           setShowLanguageMenu(false);
                         }}
                         className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
@@ -104,7 +104,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         <button
                           key={lang.code}
                           onClick={() => {
-                            setLanguage(lang.code as any);
+                            setLanguage(lang.code as Language);
                             setShowLanguageMenu(false);
                           }}
                           className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
@@ -148,7 +148,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as any)}
+                          onClick={() => setLanguage(lang.code as Language)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 
@@ -180,7 +180,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as any)}
+                          onClick={() => setLanguage(lang.code as Language)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 

@@ -23,7 +23,7 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-ignore
+      // @ts-expect-error - Circular dependency workaround
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
@@ -92,6 +92,7 @@ export class AuthService {
     const parsedUsers = users ? JSON.parse(users) : [];
     
     // Migrate existing users to new format if needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return parsedUsers.map((user: any) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
@@ -258,7 +259,7 @@ export class AuthService {
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
       return { success: true, message: 'Login successful', user };
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Login failed. Please try again.' };
     }
   }
@@ -332,7 +333,7 @@ export class AuthService {
   validateStorageIntegrity(): { 
     isValid: boolean; 
     issues: string[]; 
-    storageInfo: any;
+    storageInfo: { type: string; size: number; available: boolean } | null;
   } {
     const issues: string[] = [];
     let isValid = true;
