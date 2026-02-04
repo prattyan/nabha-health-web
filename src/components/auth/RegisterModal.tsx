@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -35,23 +35,20 @@ export default function RegisterModal({
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
   const { register } = useAuth();
   const { t } = useLanguage();
 
-  /* 🔒 Disable background scroll when modal is open */
+  // Disable background scroll when modal is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-
+    document.body.style.overflow = isOpen ? 'hidden' : 'auto';
     return () => {
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
 
-  /* ⌨️ Close modal on ESC key */
+  // Close modal on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -65,6 +62,37 @@ export default function RegisterModal({
       window.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, onClose]);
+
+  // Trap keyboard focus inside modal
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    firstElement?.focus();
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTab);
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+    };
+  }, [isOpen]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -117,17 +145,24 @@ export default function RegisterModal({
 
   return (
     <>
-      {/* 🌑 Background Overlay */}
+      {/* Background overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
         onClick={onClose}
       />
 
-      {/* 📦 Modal Container */}
+      {/* Modal container */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
-          {/* ❌ Close Button */}
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="register-modal-title"
+          className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative"
+        >
+          {/* Close button */}
           <button
+            aria-label="Close registration modal"
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
           >
@@ -139,7 +174,10 @@ export default function RegisterModal({
             <div className="bg-green-100 p-3 rounded-full inline-block mb-4">
               <UserPlus className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2
+              id="register-modal-title"
+              className="text-2xl font-bold text-gray-900"
+            >
               {t('auth.createAccount')}
             </h2>
             <p className="text-gray-600">{t('auth.joinDescription')}</p>
@@ -147,10 +185,8 @@ export default function RegisterModal({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ---- FORM CONTENT UNCHANGED ---- */}
-            {/* (Keeping your original fields exactly as-is) */}
+            {/* Original form fields remain unchanged */}
 
-            {/* Errors */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                 {error}
@@ -166,7 +202,7 @@ export default function RegisterModal({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
             >
               {isLoading
                 ? t('auth.creatingAccount')
@@ -174,7 +210,7 @@ export default function RegisterModal({
             </button>
           </form>
 
-          {/* Switch to Login */}
+          {/* Switch to login */}
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {t('auth.haveAccount')}{' '}

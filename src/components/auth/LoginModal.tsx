@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -20,23 +20,20 @@ export default function LoginModal({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
   const { login } = useAuth();
   const { t } = useLanguage();
 
-  /* 🔒 Disable background scroll when modal is open */
+  // Disable background scroll when modal is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-
+    document.body.style.overflow = isOpen ? 'hidden' : 'auto';
     return () => {
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
 
-  /* ⌨️ Close modal on ESC key */
+  // Close modal on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -50,6 +47,37 @@ export default function LoginModal({
       window.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, onClose]);
+
+  // Trap keyboard focus inside modal
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    firstElement?.focus();
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTab);
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+    };
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,17 +101,24 @@ export default function LoginModal({
 
   return (
     <>
-      {/* 🌑 Background Overlay */}
+      {/* Background overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
         onClick={onClose}
       />
 
-      {/* 📦 Modal Container */}
+      {/* Modal container */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-md w-full p-6 relative">
-          {/* ❌ Close Button */}
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-modal-title"
+          className="bg-white rounded-2xl max-w-md w-full p-6 relative"
+        >
+          {/* Close button */}
           <button
+            aria-label="Close login modal"
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
           >
@@ -95,7 +130,10 @@ export default function LoginModal({
             <div className="bg-blue-100 p-3 rounded-full inline-block mb-4">
               <LogIn className="h-8 w-8 text-blue-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2
+              id="login-modal-title"
+              className="text-2xl font-bold text-gray-900"
+            >
               {t('auth.welcomeBack')}
             </h2>
             <p className="text-gray-600">{t('auth.signInDescription')}</p>
@@ -132,6 +170,7 @@ export default function LoginModal({
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
                 >
@@ -153,13 +192,13 @@ export default function LoginModal({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
             >
               {isLoading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
           </form>
 
-          {/* Switch to Register */}
+          {/* Switch to register */}
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {t('auth.noAccount')}{' '}
