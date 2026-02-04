@@ -3,6 +3,7 @@ import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
+import { scrollToSection } from '../utils/scrollToSection';
 
 interface HeaderProps {
   mobileMenuOpen: boolean;
@@ -21,6 +22,25 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
     { code: 'hi', name: 'Hindi', nativeName: 'हिंदी' },
     { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' }
   ];
+
+    const navItems = [
+    { id: 'home', label: t('header.home') },
+    { id: 'problem', label: t('header.problem') },
+    { id: 'solution', label: t('header.solution') },
+    { id: 'servicearea', label: t('header.servicearea') },
+    { id: 'impact', label: t('header.impact') },
+  ];
+
+    const renderNavLinks = (className: string) =>
+    navItems.map((item) => (
+      <button
+        key={item.id}
+        onClick={() => scrollToSection(item.id)}
+        className={className}
+      >
+        {item.label}
+      </button>
+    ));
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -80,13 +100,20 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
             </div>
           ) : (
             <>
-              <nav className="hidden md:flex space-x-8">
+              {/* <nav className="hidden md:flex space-x-8">
                 <a href="#home" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.home')}</a>
                 <a href="#problem" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.problem')}</a>
                 <a href="#solution" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.solution')}</a>
                 <a href="#servicearea" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.servicearea')}</a>
                 <a href="#impact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.impact')}</a>
+              </nav> */}
+
+              <nav className="hidden md:flex space-x-8">
+                {renderNavLinks(
+                  'text-gray-700 hover:text-blue-600 font-medium transition-colors duration-150'
+                )}
               </nav>
+
               <div className="hidden md:flex items-center space-x-4">
                 <div className="relative">
                   <button
@@ -169,11 +196,10 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                 </>
               ) : (
                 <>
-                  <a href="#home" className="text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors">{t('header.home')}</a>
-                  <a href="#problem" className="text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors">{t('header.problem')}</a>
-                  <a href="#solution" className="text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors">{t('header.solution')}</a>
-                  <a href="#servicearea" className="text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors">{t('header.servicearea')}</a>
-                  <a href="#impact" className="text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors">{t('header.impact')}</a>
+                {renderNavLinks(
+                  'text-gray-700 hover:text-blue-600 font-medium py-2 transition-colors text-start'
+                )}
+
                   <div className="pt-2 border-t border-gray-200">
                     <p className="text-sm font-medium text-gray-700 mb-2">{t('header.language')}</p>
                     <div className="flex space-x-2">
