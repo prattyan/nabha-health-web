@@ -3,7 +3,7 @@ import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
-import { scrollToSection } from '../utils/scrollToSection';
+import { ScrollToSection } from '../utils/scrollToSection';
 
 interface HeaderProps {
   mobileMenuOpen: boolean;
@@ -35,7 +35,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
     navItems.map((item) => (
       <button
         key={item.id}
-        onClick={() => scrollToSection(item.id)}
+        onClick={() => ScrollToSection(item.id)}
         className={className}
       >
         {item.label}
