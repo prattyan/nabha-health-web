@@ -23,12 +23,14 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-expect-error - Circular dependency workaround
+      // @ts-ignore - Dynamic import to avoid circular dependency
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
           ps.migrateDoctorIdInData(oldId, newId);
         }
+      }).catch(err => {
+        console.error('Failed to load prescriptionService for migration', err);
       });
     }
   }
