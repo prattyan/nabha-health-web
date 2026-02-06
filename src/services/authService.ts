@@ -9,6 +9,12 @@ export class AuthService {
     const users = this.getUsers();
     return users.find(u => u.id === id) || null;
   }
+  
+  getUsersByRole(role: string): User[] {
+    const users = this.getUsers();
+    return users.filter(u => u.role === role);
+  }
+
   // Migration: Update old doctor ID to new format
   migrateDoctorId(oldId: string, newId: string) {
     const users = this.getUsers();

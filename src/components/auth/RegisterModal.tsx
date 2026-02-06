@@ -7,9 +7,10 @@ interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToLogin: () => void;
+  customRegister?: (data: any) => Promise<{ success: boolean; message?: string }>;
 }
 
-export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModalProps) {
+export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, customRegister }: RegisterModalProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -45,13 +46,20 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
     setSuccess('');
     setIsLoading(true);
 
-    const result = await register({
+    const dataToSubmit = {
       ...formData,
       experience: formData.experience ? parseInt(formData.experience) : undefined,
-    });
+    };
+
+    let result;
+    if (customRegister) {
+       result = await customRegister(dataToSubmit);
+    } else {
+       result = await register(dataToSubmit);
+    }
     
     if (result.success) {
-      setSuccess(result.message);
+      setSuccess(result.message || 'Registration successful!');
       // Show success message for 2 seconds before closing
       setTimeout(() => {
         onClose();
@@ -70,9 +78,14 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
           experience: '',
         });
         setSuccess('');
+
+        // Only switch to login if we are using the default flow (not custom register)
+        if (!customRegister && onSwitchToLogin) {
+             onSwitchToLogin();
+        }
       }, 2000);
     } else {
-      setError(result.message);
+      setError(result.message || 'Registration failed');
     }
     
     setIsLoading(false);
