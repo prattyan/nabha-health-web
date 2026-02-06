@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Appointment } from '../../types/prescription';
 import { User, RegisterData } from '../../types/auth'; // Ensure RegisterData is imported
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -6,7 +6,7 @@ import { AuthService } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Users, MapPin, Activity, AlertTriangle, Search, UserPlus, 
-  Wifi, WifiOff, Bell, ClipboardList, Clock, RefreshCw, Bot, Plus
+  Wifi, WifiOff, Bell, ClipboardList, Clock, RefreshCw, Bot
 } from 'lucide-react';
 import RegisterModal from '../auth/RegisterModal';
 import AppointmentBookingModal from '../modals/AppointmentBookingModal';
@@ -36,7 +36,7 @@ export default function HealthWorkerDashboard() {
   const [isSymptomCheckerOpen, setIsSymptomCheckerOpen] = useState(false);
 
   // Load data
-  const loadPatients = () => {
+  const loadPatients = useCallback(() => {
     const allPatients = authService.getUsersByRole('patient');
     // In a real app, filter by health worker's village/jurisdiction
     // For now, filter if the health worker has a village assigned
@@ -45,7 +45,7 @@ export default function HealthWorkerDashboard() {
     } else {
         setPatients(allPatients);
     }
-  };
+  }, [authService, user?.village]);
 
   useEffect(() => {
     loadPatients();
@@ -64,7 +64,7 @@ export default function HealthWorkerDashboard() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [user]);
+  }, [loadPatients]);
 
   // Handle Manual Sync
   const handleSync = () => {
@@ -104,7 +104,7 @@ export default function HealthWorkerDashboard() {
 
   const handleRegisterPatient = async (data: RegisterData) => { // Use RegisterData type
     const patientData = { ...data, role: 'patient' }; 
-    const result = await authService.register(patientData as any); // Cast avoiding overly strict type checks if mismatch
+    const result = await authService.register(patientData as RegisterData);
     if (result.success) {
         loadPatients(); // Refresh list
         return { success: true, message: 'Patient registered successfully' };

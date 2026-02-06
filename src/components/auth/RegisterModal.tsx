@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { RegisterData } from '../../types/auth';
 
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToLogin: () => void;
-  customRegister?: (data: any) => Promise<{ success: boolean; message?: string }>;
+  customRegister?: (data: RegisterData) => Promise<{ success: boolean; message?: string }>;
 }
 
 export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, customRegister }: RegisterModalProps) {

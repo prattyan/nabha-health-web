@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Bot, AlertCircle, ChevronRight, Activity, ClipboardCheck } from 'lucide-react';
+import { X, Bot, AlertCircle, Activity } from 'lucide-react';
 import { AISymptomService, PredictionResult } from '../../services/aiSymptomService';
 
 interface SymptomCheckerModalProps {

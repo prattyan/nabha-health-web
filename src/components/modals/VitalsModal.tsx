@@ -110,7 +110,7 @@ export default function VitalsModal({ isOpen, onClose, patientId, patientName, o
         bloodSugar: '',
         bloodSugarType: 'random'
       });
-    } catch (err) {
+    } catch {
       setError('Failed to save vitals. Please try again.');
     } finally {
       setIsLoading(false);

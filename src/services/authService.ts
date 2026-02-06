@@ -29,7 +29,7 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-ignore - Dynamic import to avoid circular dependency
+      // @ts-expect-error - Dynamic import to avoid circular dependency
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
