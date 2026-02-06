@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, FileText, Heart, Thermometer, Activity, Weight, Calendar, User, Download, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -31,8 +31,6 @@ export default function HealthRecordsModal({
   const [activeTab, setActiveTab] = useState('records');
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showAddRecord, setShowAddRecord] = useState(false);
-  const [showVitalSigns, setShowVitalSigns] = useState(false);
   
   // Form states
   const [newRecord, setNewRecord] = useState({
@@ -52,18 +50,18 @@ export default function HealthRecordsModal({
     oxygenSaturation: ''
   });
 
-  useEffect(() => {
-    if (isOpen && user) {
-      loadHealthRecords();
-    }
-  }, [isOpen, user]);
-
-  const loadHealthRecords = () => {
+  const loadHealthRecords = useCallback(() => {
     if (!user) return;
     
     const records = prescriptionService.getHealthRecordsByPatient(user.id);
     setHealthRecords(records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  };
+  }, [user, prescriptionService]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      loadHealthRecords();
+    }
+  }, [isOpen, user, loadHealthRecords]);
 
   const handleAddRecord = async () => {
     if (!user || !newRecord.title || !newRecord.description) return;
@@ -81,7 +79,7 @@ export default function HealthRecordsModal({
 
       prescriptionService.createHealthRecord(recordData);
       loadHealthRecords();
-      setShowAddRecord(false);
+      setActiveTab('records');
       setNewRecord({
         recordType: 'visit',
         title: '',
@@ -168,7 +166,7 @@ export default function HealthRecordsModal({
 
       prescriptionService.createHealthRecord(recordData);
       loadHealthRecords();
-      setShowVitalSigns(false);
+      setActiveTab('records');
       setVitalSignsForm({
         bloodPressure: { systolic: '', diastolic: '' },
         heartRate: '',
@@ -337,7 +335,7 @@ export default function HealthRecordsModal({
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Recent Vital Signs</h3>
               <button
-                onClick={() => setShowVitalSigns(true)}
+                onClick={() => setActiveTab('add')}
                 className="flex items-center space-x-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4" />
@@ -414,7 +412,7 @@ export default function HealthRecordsModal({
                       value={newRecord.recordType}
                       onChange={(e) => setNewRecord(prev => ({ 
                         ...prev, 
-                        recordType: e.target.value as any 
+                        recordType: e.target.value as HealthRecord['recordType']
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >

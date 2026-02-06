@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthService } from '../../services/authService';
@@ -51,6 +51,15 @@ export default function DoctorDashboard() {
 
   const prescriptionService = PrescriptionService.getInstance();
 
+  const loadDoctorData = useCallback(() => {
+    if (user) {
+      const doctorAppointments = prescriptionService.getAppointmentsByDoctor(user.id);
+      const doctorPrescriptions = prescriptionService.getPrescriptionsByDoctor(user.id);
+      setAppointments(doctorAppointments);
+      setPrescriptions(doctorPrescriptions);
+    }
+  }, [user, prescriptionService]);
+
   React.useEffect(() => {
     if (user) {
       loadDoctorData();
@@ -58,7 +67,7 @@ export default function DoctorDashboard() {
         setAvailableDates(authService.getDoctorAvailableDates(user.id));
       }
     }
-  }, [user]);
+  }, [user, loadDoctorData, authService]);
 
   const handleCompleteAppointment = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -89,15 +98,6 @@ export default function DoctorDashboard() {
     if (apt) {
       setRescheduleAppointment(apt);
       setShowRescheduleModal(true);
-    }
-  };
-
-  const loadDoctorData = () => {
-    if (user) {
-      const doctorAppointments = prescriptionService.getAppointmentsByDoctor(user.id);
-      const doctorPrescriptions = prescriptionService.getPrescriptionsByDoctor(user.id);
-      setAppointments(doctorAppointments);
-      setPrescriptions(doctorPrescriptions);
     }
   };
 

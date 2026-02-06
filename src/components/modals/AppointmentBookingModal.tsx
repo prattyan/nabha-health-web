@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, MapPin, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Calendar, Clock, User, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -51,7 +51,7 @@ export default function AppointmentBookingModal({
       const doctors = authService.getAvailableDoctors();
       setAvailableDoctors(doctors);
     }
-  }, [isOpen]);
+  }, [isOpen, authService]);
 
   useEffect(() => {
     if (isOpen && selectedDoctorId) {
@@ -71,13 +71,7 @@ export default function AppointmentBookingModal({
     }
   }, [selectedDoctor]);
 
-  useEffect(() => {
-    if (appointmentData.date && selectedDoctor) {
-      generateAvailableSlots();
-    }
-  }, [appointmentData.date, selectedDoctor]);
-
-  const generateAvailableSlots = () => {
+  const generateAvailableSlots = useCallback(() => {
     // Generate slots and filter out already booked ones for the doctor and date
     const allSlots = [
       '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -94,7 +88,13 @@ export default function AppointmentBookingModal({
     const bookedSlots = bookedAppointments.map(apt => apt.time);
     const available = allSlots.filter(slot => !bookedSlots.includes(slot));
     setAvailableSlots(available);
-  };
+  }, [selectedDoctor, appointmentData.date, prescriptionService]);
+
+  useEffect(() => {
+    if (appointmentData.date && selectedDoctor) {
+      generateAvailableSlots();
+    }
+  }, [appointmentData.date, selectedDoctor, generateAvailableSlots]);
 
   const handleDoctorSelect = (doctor: UserType) => {
   setSelectedDoctor(doctor);
@@ -158,7 +158,7 @@ export default function AppointmentBookingModal({
       onAppointmentBooked(newAppointment);
       resetForm();
       onClose();
-    } catch (err) {
+    } catch {
       setError('Failed to book appointment. Please try again.');
     } finally {
       setIsLoading(false);
@@ -179,11 +179,6 @@ export default function AppointmentBookingModal({
     });
     setSymptomInput('');
     setError('');
-  };
-
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
   };
 
   if (!isOpen) return null;
@@ -323,7 +318,7 @@ export default function AppointmentBookingModal({
                 value={appointmentData.type}
                 onChange={(e) => setAppointmentData(prev => ({ 
                   ...prev, 
-                  type: e.target.value as any 
+                  type: e.target.value as Appointment['type'] 
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -359,7 +354,7 @@ export default function AppointmentBookingModal({
                 value={appointmentData.priority}
                 onChange={(e) => setAppointmentData(prev => ({ 
                   ...prev, 
-                  priority: e.target.value as any 
+                  priority: e.target.value as Appointment['priority'] 
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >

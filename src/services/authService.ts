@@ -23,13 +23,17 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-ignore
+      // @ts-ignore - Dynamic import to avoid circular dependency
+      /*
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
           ps.migrateDoctorIdInData(oldId, newId);
         }
+      }).catch(err => {
+        console.error('Failed to load prescriptionService for migration', err);
       });
+      */
     }
   }
   setDoctorAvailableDates(doctorId: string, dates: string[]): void {
@@ -92,7 +96,7 @@ export class AuthService {
     const parsedUsers = users ? JSON.parse(users) : [];
     
     // Migrate existing users to new format if needed
-    return parsedUsers.map((user: any) => ({
+    return parsedUsers.map((user: User) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== undefined ? user.isActive : true,
@@ -258,7 +262,7 @@ export class AuthService {
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
       return { success: true, message: 'Login successful', user };
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Login failed. Please try again.' };
     }
   }
@@ -332,7 +336,7 @@ export class AuthService {
   validateStorageIntegrity(): { 
     isValid: boolean; 
     issues: string[]; 
-    storageInfo: any;
+    storageInfo: Record<string, number>;
   } {
     const issues: string[] = [];
     let isValid = true;
