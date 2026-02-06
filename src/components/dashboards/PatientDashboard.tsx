@@ -50,6 +50,8 @@ export default function PatientDashboard() {
 
   const prescriptionService = PrescriptionService.getInstance();
 
+
+
   const loadPatientData = React.useCallback(() => {
     // TODO: Load medicine reminders from prescriptions or medication management service
     // For now, set sample reminders
@@ -71,6 +73,7 @@ export default function PatientDashboard() {
       loadPatientData();
     }
   }, [user, loadPatientData]);
+
 
   const handleViewPrescription = (prescription: Prescription) => {
     setSelectedPrescription(prescription);

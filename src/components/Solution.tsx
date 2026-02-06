@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Video, Smartphone, Pill, Brain, Wifi, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -6,7 +6,7 @@ export default function Solution() {
   const { t } = useLanguage();
   const [currentFeature, setCurrentFeature] = useState(0);
 
-  const features = [
+  const features = useMemo(() => [
     {
       icon: Wifi,
       title: t('solution.feature1.title'),
@@ -67,7 +67,7 @@ export default function Solution() {
         t('solution.feature6.detail3')
       ]
     }
-  ];
+  ], [t]);
 
   const nextFeature = useCallback(() => {
     setCurrentFeature((prev) => (prev + 1) % features.length);
@@ -146,52 +146,24 @@ export default function Solution() {
                   return <IconComponent className="h-32 w-32 text-blue-500 opacity-20" />;
                 })()}
               </div>
+              
+              {/* Carousel Navigation */}
+              <div className="absolute bottom-4 right-4 flex space-x-2">
+                <button 
+                  onClick={prevFeature}
+                  className="p-2 bg-white rounded-full shadow-md text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button 
+                  onClick={nextFeature}
+                  className="p-2 bg-white rounded-full shadow-md text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
-
-          {/* Navigation Arrows */}
-          <button
-            onClick={prevFeature}
-            aria-label={t('solution.previousFeature')}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
-          >
-            <ChevronLeft className="h-6 w-6 text-gray-600" />
-          </button>
-          
-          <button
-            onClick={nextFeature}
-            aria-label={t('solution.nextFeature')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
-          >
-            <ChevronRight className="h-6 w-6 text-gray-600" />
-          </button>
-
-          {/* Dots Indicator */}
-          <div className="flex justify-center space-x-2 mt-8">
-            {features.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentFeature(idx)}
-                aria-label={`Go to feature ${idx + 1}`}
-                className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                  idx === currentFeature
-                    ? 'bg-gradient-to-r from-blue-500 to-teal-500 scale-125'
-                    : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Call to Action */}
-        <div className="bg-gradient-to-r from-blue-600 to-teal-600 rounded-3xl p-8 text-white text-center">
-          <h3 className="text-3xl font-bold mb-4">{t('solution.cta.title')}</h3>
-          <p className="text-blue-100 mb-6 max-w-2xl mx-auto text-lg">
-            {t('solution.cta.description')}
-          </p>
-          <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg hover:shadow-xl">
-            {t('solution.cta.button')}
-          </button>
         </div>
       </div>
     </section>

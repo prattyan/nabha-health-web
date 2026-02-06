@@ -24,7 +24,6 @@ export class AuthService {
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
       // @ts-ignore - Dynamic import to avoid circular dependency
-      /*
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
@@ -33,7 +32,6 @@ export class AuthService {
       }).catch(err => {
         console.error('Failed to load prescriptionService for migration', err);
       });
-      */
     }
   }
   setDoctorAvailableDates(doctorId: string, dates: string[]): void {
@@ -96,7 +94,8 @@ export class AuthService {
     const parsedUsers = users ? JSON.parse(users) : [];
     
     // Migrate existing users to new format if needed
-    return parsedUsers.map((user: User) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return parsedUsers.map((user: any) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== undefined ? user.isActive : true,
@@ -336,7 +335,7 @@ export class AuthService {
   validateStorageIntegrity(): { 
     isValid: boolean; 
     issues: string[]; 
-    storageInfo: Record<string, number>;
+    storageInfo: { type: string; size: number; available: boolean } | null;
   } {
     const issues: string[] = [];
     let isValid = true;

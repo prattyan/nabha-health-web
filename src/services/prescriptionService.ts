@@ -36,14 +36,14 @@ export class PrescriptionService {
   getMedicationTrackingByPatient(patientId: string) {
     const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
     if (!trackingRaw) return [];
-    const tracking: MedicationTracking[] = JSON.parse(trackingRaw);
+    const tracking = JSON.parse(trackingRaw) as MedicationTracking[];
     return tracking.filter((t) => t.patientId === patientId);
   }
 
   updateMedicationStatus(trackingId: string, status: 'taken' | 'missed' | 'skipped', actualTime?: string) {
     const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
     if (!trackingRaw) return false;
-    const tracking: MedicationTracking[] = JSON.parse(trackingRaw);
+    const tracking = JSON.parse(trackingRaw) as MedicationTracking[];
     const idx = tracking.findIndex((t) => t.id === trackingId);
     if (idx === -1) return false;
     tracking[idx].status = status;
