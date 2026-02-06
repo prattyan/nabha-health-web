@@ -7,6 +7,7 @@ import RegisterModal from './components/auth/RegisterModal';
 import PatientDashboard from './components/dashboards/PatientDashboard';
 import DoctorDashboard from './components/dashboards/DoctorDashboard';
 import HealthWorkerDashboard from './components/dashboards/HealthWorkerDashboard';
+import AdminDashboard from './components/dashboards/AdminDashboard';
 import Hero from './components/Hero';
 import ProblemStatement from './components/ProblemStatement';
 import Solution from './components/Solution';
@@ -39,6 +40,7 @@ function AppContent() {
           setMobileMenuOpen={setMobileMenuOpen}
           onLoginClick={() => setShowLoginModal(true)}
         />
+        {user.role === 'admin' && <AdminDashboard />}
         {user.role === 'patient' && <PatientDashboard />}
         {user.role === 'doctor' && <DoctorDashboard />}
         {user.role === 'healthworker' && <HealthWorkerDashboard />}

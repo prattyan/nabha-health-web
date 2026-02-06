@@ -5,7 +5,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  role: 'patient' | 'doctor' | 'healthworker';
+  role: 'patient' | 'doctor' | 'healthworker' | 'admin';
   createdAt: string;
   updatedAt: string;
   isActive: boolean;
@@ -73,6 +73,13 @@ export interface PatientProfile extends User {
   assignedDoctor?: string;
 }
 
+export interface AdminProfile extends User {
+  role: 'admin';
+  department?: string;
+  permissions?: string[];
+  lastLogin?: string;
+}
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -91,7 +98,7 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone: string;
-  role: 'patient' | 'doctor' | 'healthworker';
+  role: 'patient' | 'doctor' | 'healthworker' | 'admin';
   specialization?: string;
   licenseNumber?: string;
   village?: string;
