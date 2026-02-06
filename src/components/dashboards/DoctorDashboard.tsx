@@ -3,6 +3,7 @@ import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp } from 'lucid
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthService } from '../../services/authService';
 import { PrescriptionService } from '../../services/prescriptionService';
+import { showLocalNotification } from '../../services/notificationService';
 import { Appointment, Prescription } from '../../types/prescription';
 import VideoCallModal from '../modals/VideoCallModal';
 import RescheduleAppointmentModal from '../modals/RescheduleAppointmentModal';
@@ -116,6 +117,26 @@ export default function DoctorDashboard() {
       setReviewAppointmentId(null);
       loadDoctorData();
     }
+  };
+
+  /**
+   * Triggers a local notification to alert that the doctor is available.
+   * This is a simulation trigger for potential backend integration.
+   */
+  const handleDoctorAvailabilityNotification = () => {
+    showLocalNotification('doctorAvailability', {
+      body: `Dr. ${user?.firstName ?? ''} ${user?.lastName ?? ''} is available for consultation.`.trim()
+    });
+  };
+
+  /**
+   * Triggers a local notification for an urgent triage case.
+   * Intended to be connected to real-time triage updates.
+   */
+  const handleUrgentTriageNotification = () => {
+    showLocalNotification('urgentTriageAlert', {
+      body: 'An urgent triage case has been flagged. Please review immediately.'
+    });
   };
 
   const getPatientQueue = () => {
@@ -312,6 +333,23 @@ export default function DoctorDashboard() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                  <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Notifications</h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleDoctorAvailabilityNotification}
+                        className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                      >
+                        Send Doctor Availability
+                      </button>
+                      <button
+                        onClick={handleUrgentTriageNotification}
+                        className="w-full bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                      >
+                        Send Urgent Triage Alert
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
