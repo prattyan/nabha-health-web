@@ -17,7 +17,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
     firstName: '',
     lastName: '',
     phone: '',
-    role: 'patient' as 'patient' | 'doctor' | 'healthworker',
+    role: 'patient' as 'patient' | 'doctor' | 'healthworker' | 'pharmacy' | 'admin',
     specialization: '',
     licenseNumber: '',
     village: '',
@@ -172,6 +172,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
               <option value="patient">{t('auth.patient')}</option>
               <option value="doctor">{t('auth.doctor')}</option>
               <option value="healthworker">{t('auth.healthworker')}</option>
+              <option value="pharmacy">Pharmacy</option>
+              <option value="admin">Administrator</option>
             </select>
           </div>
 

@@ -155,6 +155,15 @@ export class AuthService {
       } else if (data.role === 'patient') {
         idPrefix = 'PAT';
         nextNumber = users.filter(u => u.role === 'patient').length + 1;
+      } else if (data.role === 'healthworker') {
+        idPrefix = 'HW';
+        nextNumber = users.filter(u => u.role === 'healthworker').length + 1;
+      } else if (data.role === 'pharmacy') {
+        idPrefix = 'PHR';
+        nextNumber = users.filter(u => u.role === 'pharmacy').length + 1;
+      } else if (data.role === 'admin') {
+        idPrefix = 'ADM';
+        nextNumber = users.filter(u => u.role === 'admin').length + 1;
       } else {
         idPrefix = 'USR';
         nextNumber = users.length + 1;
@@ -255,6 +264,18 @@ export class AuthService {
         return { success: false, message: 'Invalid email or password' };
       }
 
+      // Check if user is active
+      if (!user.isActive) {
+        console.log(`Login rejected for inactive user: ${user.email}`);
+        return { success: false, message: 'Account is deactivated. Please contact administrator.' };
+      }
+
+      // Check if registration is complete (optional)
+      if (!user.registrationComplete) {
+        console.log(`Login rejected for incomplete registration: ${user.email}`);
+        return { success: false, message: 'Registration is incomplete. Please complete your profile.' };
+      }
+
       // Store current user
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
@@ -312,6 +333,74 @@ export class AuthService {
       healthworkers: users.filter(u => u.role === 'healthworker').length,
       recentRegistrations: users.filter(u => new Date(u.createdAt) > oneWeekAgo).length,
     };
+  }
+
+  // Update user status (admin feature)
+  updateUserStatus(userId: string, isActive: boolean): boolean {
+    try {
+      const users = this.getUsers();
+      const userIndex = users.findIndex(u => u.id === userId);
+      
+      if (userIndex === -1) {
+        console.error('User not found for status update:', userId);
+        return false;
+      }
+
+      // Update the user's status
+      users[userIndex] = {
+        ...users[userIndex],
+        isActive: isActive,
+        updatedAt: new Date().toISOString()
+      };
+
+      this.saveUsers(users);
+
+      // Update current user if it's the same user
+      const currentUser = this.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(users[userIndex]));
+      }
+
+      console.log(`User status updated: ${userId} -> ${isActive ? 'active' : 'inactive'}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      return false;
+    }
+  }
+
+  // Update user role (admin feature)
+  updateUserRole(userId: string, newRole: 'patient' | 'doctor' | 'healthworker' | 'pharmacy' | 'admin'): boolean {
+    try {
+      const users = this.getUsers();
+      const userIndex = users.findIndex(u => u.id === userId);
+      
+      if (userIndex === -1) {
+        console.error('User not found for role update:', userId);
+        return false;
+      }
+
+      // Update the user's role
+      users[userIndex] = {
+        ...users[userIndex],
+        role: newRole,
+        updatedAt: new Date().toISOString()
+      };
+
+      this.saveUsers(users);
+
+      // Update current user if it's the same user
+      const currentUser = this.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(users[userIndex]));
+      }
+
+      console.log(`User role updated: ${userId} -> ${newRole}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to update user role:', error);
+      return false;
+    }
   }
 
   // Export user data for backup (admin feature)

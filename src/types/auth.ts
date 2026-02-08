@@ -5,7 +5,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  role: 'patient' | 'doctor' | 'healthworker';
+  role: 'patient' | 'doctor' | 'healthworker' | 'pharmacy' | 'admin';
   createdAt: string;
   updatedAt: string;
   isActive: boolean;
@@ -73,6 +73,35 @@ export interface PatientProfile extends User {
   assignedDoctor?: string;
 }
 
+export interface PharmacyProfile extends User {
+  role: 'pharmacy';
+  pharmacyName: string;
+  licenseNumber: string;
+  address: string;
+  phone: string;
+  operatingHours: {
+    open: string;
+    close: string;
+    days: string[];
+  };
+  servicesOffered: string[];
+  inventoryCount: number;
+  totalDispensed: number;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+}
+
+export interface AdminProfile extends User {
+  role: 'admin';
+  adminLevel: 'system' | 'hospital' | 'regional';
+  permissions: string[];
+  managedFacilities: string[];
+  lastLoginAt: string;
+  accessLevel: number;
+  canManageUsers: boolean;
+  canViewReports: boolean;
+  canModifySystem: boolean;
+}
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -91,7 +120,7 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone: string;
-  role: 'patient' | 'doctor' | 'healthworker';
+  role: 'patient' | 'doctor' | 'healthworker' | 'pharmacy' | 'admin';
   specialization?: string;
   licenseNumber?: string;
   village?: string;
@@ -109,4 +138,16 @@ export interface RegisterData {
   allergies?: string[];
   bloodType?: string;
   preferredLanguage?: 'en' | 'hi' | 'pa';
+  // Pharmacy-specific fields
+  pharmacyName?: string;
+  address?: string;
+  operatingHours?: {
+    open: string;
+    close: string;
+    days: string[];
+  };
+  servicesOffered?: string[];
+  // Admin-specific fields
+  adminLevel?: 'system' | 'hospital' | 'regional';
+  managedFacilities?: string[];
 }
