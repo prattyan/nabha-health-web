@@ -12,13 +12,15 @@ interface AppointmentBookingModalProps {
   onClose: () => void;
   onAppointmentBooked: (appointment: Appointment) => void;
   selectedDoctorId?: string;
+  patientId?: string;
 }
 
 export default function AppointmentBookingModal({ 
   isOpen, 
   onClose, 
   onAppointmentBooked,
-  selectedDoctorId 
+  selectedDoctorId,
+  patientId 
 }: AppointmentBookingModalProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -138,10 +140,24 @@ export default function AppointmentBookingModal({
     setError('');
 
     try {
+      // Use provided patientId if available, otherwise current user
+      const targetPatientId = patientId || user.id;
+      let targetPatientName = `${user.firstName} ${user.lastName}`;
+      let targetVillage = user.village;
+      
+      // If booking for another patient, we need their details
+      if (patientId && patientId !== user.id) {
+         const patient = authService.getUserById(patientId);
+         if (patient) {
+            targetPatientName = `${patient.firstName} ${patient.lastName}`;
+            targetVillage = patient.village;
+         }
+      }
+
       const newAppointment = prescriptionService.createAppointment({
-        patientId: user.id,
+        patientId: targetPatientId,
         doctorId: selectedDoctor.id,
-        patientName: `${user.firstName} ${user.lastName}`,
+        patientName: targetPatientName,
         doctorName: `${selectedDoctor.firstName} ${selectedDoctor.lastName}`,
         date: appointmentData.date,
         time: appointmentData.time,
@@ -152,7 +168,9 @@ export default function AppointmentBookingModal({
         symptoms: appointmentData.symptoms,
         notes: appointmentData.notes,
         specialization: selectedDoctor.specialization,
-        village: user.village
+        village: targetVillage,
+        // If logged in user is health worker, tag them (assuming healthworker role)
+        healthWorkerId: user.role === 'healthworker' ? user.id : undefined 
       });
 
       onAppointmentBooked(newAppointment);

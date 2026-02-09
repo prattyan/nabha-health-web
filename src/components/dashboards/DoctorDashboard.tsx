@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthService } from '../../services/authService';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -10,6 +10,7 @@ import RescheduleAppointmentModal from '../modals/RescheduleAppointmentModal';
 import PrescriptionModal from '../modals/PrescriptionModal';
 import PrescriptionViewModal from '../modals/PrescriptionViewModal';
 import ReviewModal from '../modals/ReviewModal';
+import InventoryPanel from '../pharmacy/InventoryPanel';
 // ...existing code...
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -51,6 +52,15 @@ export default function DoctorDashboard() {
 
   const prescriptionService = PrescriptionService.getInstance();
 
+  const loadDoctorData = useCallback(() => {
+    if (user) {
+      const doctorAppointments = prescriptionService.getAppointmentsByDoctor(user.id);
+      const doctorPrescriptions = prescriptionService.getPrescriptionsByDoctor(user.id);
+      setAppointments(doctorAppointments);
+      setPrescriptions(doctorPrescriptions);
+    }
+  }, [user, prescriptionService]);
+
   React.useEffect(() => {
     if (user) {
       loadDoctorData();
@@ -76,11 +86,13 @@ export default function DoctorDashboard() {
     loadDoctorData();
   };
 
+  /* 
   const handleStartCall = (appointmentId: string) => {
     // Update appointment status to ongoing
     prescriptionService.updateAppointment(appointmentId, { status: 'ongoing' });
     loadDoctorData();
   };
+  */
 
   const handleRescheduleAppointment = (appointmentId: string) => {
     const apt = appointments.find(a => a.id === appointmentId);
@@ -90,14 +102,7 @@ export default function DoctorDashboard() {
     }
   };
 
-  const loadDoctorData = React.useCallback(() => {
-    if (user) {
-      const doctorAppointments = prescriptionService.getAppointmentsByDoctor(user.id);
-      const doctorPrescriptions = prescriptionService.getPrescriptionsByDoctor(user.id);
-      setAppointments(doctorAppointments);
-      setPrescriptions(doctorPrescriptions);
-    }
-  }, [user, prescriptionService]);
+
 
   // Removed handleSlotAdded function
 
@@ -231,7 +236,8 @@ export default function DoctorDashboard() {
                 { id: 'overview', label: 'Overview', icon: TrendingUp },
                 { id: 'appointments', label: 'Appointments', icon: CalendarIcon },
                 { id: 'patients', label: 'Patients', icon: Users },
-                { id: 'consultations', label: 'Consultations', icon: Video }
+                { id: 'consultations', label: 'Consultations', icon: Video },
+                { id: 'inventory', label: 'Inventory', icon: Package }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -250,6 +256,7 @@ export default function DoctorDashboard() {
           </div>
 
           <div className="p-6">
+            {activeTab === 'inventory' && <InventoryPanel />}
             {activeTab === 'overview' && (
               <div className="grid lg:grid-cols-2 gap-8">
                 <div>

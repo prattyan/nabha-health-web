@@ -59,25 +59,26 @@ const useIntersectionObserver = (threshold = 0.3) => {
   return { elementRef, isVisible };
 };
 
-interface Stat {
-  icon: React.ElementType;
-  value: number;
-  suffix: string;
-  label: string;
-  color: string;
+interface StatItemProps {
+  stat: {
+    value: number;
+    suffix: string;
+    label: string;
+    color: string;
+    icon: React.ElementType;
+  };
+  index: number;
+  isVisible: boolean;
+  getStatColor: (color: string) => string;
+  getIconColor: (color: string) => string;
 }
 
-const StatItem = ({ stat, index, isVisible, getStatColor, getIconColor }: { 
-  stat: Stat; 
-  index: number; 
-  isVisible: boolean;
-  getStatColor: (c: string) => string;
-  getIconColor: (c: string) => string;
-}) => {
+// Stat Item Component to handle hooks correctly
+const StatItem = ({ stat, index, isVisible, getStatColor, getIconColor }: StatItemProps) => {
   const animatedValue = useCountUp(stat.value, 0, 2000 + index * 300, isVisible);
   
   return (
-    <div className="text-center">
+    <div key={index} className="text-center">
       <div className={`${getStatColor(stat.color)} p-4 rounded-lg mb-3 inline-block`}>
         <stat.icon className={`h-8 w-8 ${getIconColor(stat.color)}`} />
       </div>
@@ -86,15 +87,6 @@ const StatItem = ({ stat, index, isVisible, getStatColor, getIconColor }: {
       </h3>
       <p className="text-gray-600">{stat.label}</p>
     </div>
-  );
-};
-
-const StatValue = ({ value, duration, isVisible, suffix }: { value: number, duration: number, isVisible: boolean, suffix: string }) => {
-  const count = useCountUp(value, 0, duration, isVisible);
-  return (
-    <h3 className="text-2xl font-bold text-gray-900 font-mono">
-      {count}{suffix}
-    </h3>
   );
 };
 
@@ -183,28 +175,22 @@ export default function Hero() {
               <div className="grid grid-cols-2 gap-6">
                 {stats.slice(0, 2).map((stat, index) => (
                   <StatItem 
-                    key={index} 
-                    stat={stat} 
-                    index={index} 
+                    key={index}
+                    stat={stat}
+                    index={index}
                     isVisible={isVisible}
                     getStatColor={getStatColor}
                     getIconColor={getIconColor}
                   />
                 ))}
-                <div className="text-center col-span-2">
-                  <div className={`${getStatColor(stats[2].color)} p-4 rounded-lg mb-3 inline-block`}>
-                    {(() => {
-                      const IconComponent = stats[2].icon;
-                      return <IconComponent className={`h-8 w-8 ${getIconColor(stats[2].color)}`} />;
-                    })()}
-                  </div>
-                  <StatValue 
-                    value={stats[2].value} 
-                    duration={2500} 
-                    isVisible={isVisible} 
-                    suffix={stats[2].suffix} 
+                <div className="col-span-2">
+                  <StatItem 
+                    stat={stats[2]}
+                    index={2}
+                    isVisible={isVisible}
+                    getStatColor={getStatColor}
+                    getIconColor={getIconColor}
                   />
-                  <p className="text-gray-600">{stats[2].label}</p>
                 </div>
               </div>
             </div>
