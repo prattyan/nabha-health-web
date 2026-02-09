@@ -14,6 +14,7 @@ import ReviewModal from '../modals/ReviewModal';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
+
 export default function DoctorDashboard() {
   // Migrate missing patient names in appointments on mount
   React.useEffect(() => {
