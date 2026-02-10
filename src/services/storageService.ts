@@ -184,7 +184,8 @@ export class StorageService {
   }
 
   // Get data from IndexedDB backup (synchronous fallback)
-  private getFromIndexedDBBackup(key: string): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private getFromIndexedDBBackup(_key: string): string | null {
     // This is a simplified synchronous version
     // In a real implementation, you'd want to make this async
     return null;

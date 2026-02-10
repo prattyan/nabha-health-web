@@ -1,5 +1,6 @@
 import { User, LoginCredentials, RegisterData } from '../types/auth';
 import { StorageService } from './storageService';
+import type { DoctorMetrics, SystemMetrics } from '../types/admin';
 
 const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
@@ -9,6 +10,12 @@ export class AuthService {
     const users = this.getUsers();
     return users.find(u => u.id === id) || null;
   }
+  
+  getUsersByRole(role: string): User[] {
+    const users = this.getUsers();
+    return users.filter(u => u.role === role);
+  }
+
   // Migration: Update old doctor ID to new format
   migrateDoctorId(oldId: string, newId: string) {
     const users = this.getUsers();
@@ -23,12 +30,14 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-ignore
+      // @ts-expect-error - Dynamic import to avoid circular dependency
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
           ps.migrateDoctorIdInData(oldId, newId);
         }
+      }).catch(err => {
+        console.error('Failed to load prescriptionService for migration', err);
       });
     }
   }
@@ -92,6 +101,7 @@ export class AuthService {
     const parsedUsers = users ? JSON.parse(users) : [];
     
     // Migrate existing users to new format if needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return parsedUsers.map((user: any) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
@@ -258,7 +268,7 @@ export class AuthService {
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
 
       return { success: true, message: 'Login successful', user };
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Login failed. Please try again.' };
     }
   }
@@ -332,7 +342,7 @@ export class AuthService {
   validateStorageIntegrity(): { 
     isValid: boolean; 
     issues: string[]; 
-    storageInfo: any;
+    storageInfo: { type: string; size: number; available: boolean } | null;
   } {
     const issues: string[] = [];
     let isValid = true;
@@ -378,5 +388,97 @@ export class AuthService {
         storageInfo: null 
       };
     }
+  }
+
+  // ========== ADMIN METHODS ==========
+
+  /**
+   * Get doctor statistics for admin dashboard
+   */
+  getDoctorStats(): DoctorMetrics {
+    const users = this.getUsers();
+    const doctors = users.filter(u => u.role === 'doctor');
+
+    // Group doctors by specialization
+    const doctorsBySpec: { [key: string]: number } = {};
+    doctors.forEach(doc => {
+      const spec = doc.specialization || 'General';
+      doctorsBySpec[spec] = (doctorsBySpec[spec] || 0) + 1;
+    });
+
+    const doctorsBySpecialization = Object.entries(doctorsBySpec).map(([spec, count]) => ({
+      specialization: spec,
+      count
+    }));
+
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+
+    // Calculate doctors available today
+    const doctorsAvailableToday = doctors.filter(doc => {
+      const availableDates = doc.availableDates || [];
+      return availableDates.includes(today);
+    }).length;
+
+    // Build detailed workload
+    const doctorWorkload = doctors.map(doc => ({
+      doctorId: doc.id,
+      doctorName: `${doc.firstName} ${doc.lastName}`,
+      specialization: doc.specialization || 'General',
+      appointmentsToday: 0, // Will be calculated from PrescriptionService
+      appointmentsThisWeek: 0,
+      totalPatients: doc.totalPatients || 0,
+      totalConsultations: doc.totalConsultations || 0,
+      rating: doc.rating || 0
+    }));
+
+    return {
+      totalDoctors: doctors.length,
+      doctorsBySpecialization,
+      doctorsAvailableToday,
+      doctorWorkload
+    };
+  }
+
+  /**
+   * Get system metrics for admin dashboard
+   */
+  getSystemMetrics(): SystemMetrics {
+    const users = this.getUsers();
+    const integrity = this.validateStorageIntegrity();
+
+    return {
+      storageUsage: {
+        used: this.storageService.getStorageInfo().size || 0,
+        available: 5242880, // 5MB typical localStorage limit
+        percentUsed: Math.round((this.storageService.getStorageInfo().size || 0) / 5242880 * 100)
+      },
+      dataIntegrity: {
+        isValid: integrity.isValid,
+        issues: integrity.issues,
+        duplicateUsers: 0,
+        totalRecords: users.length
+      },
+      userStats: {
+        totalUsers: users.length,
+        activeUsers: users.filter(u => u.isActive).length,
+        patients: users.filter(u => u.role === 'patient').length,
+        doctors: users.filter(u => u.role === 'doctor').length,
+        healthworkers: users.filter(u => u.role === 'healthworker').length,
+        admins: users.filter(u => u.role === 'admin').length
+      }
+    };
+  }
+
+  /**
+   * Get comprehensive admin stats
+   */
+  getAdminStats() {
+    return {
+      doctorMetrics: this.getDoctorStats(),
+      systemMetrics: this.getSystemMetrics(),
+      registrationStats: this.getRegistrationStats(),
+      timestamp: new Date().toISOString()
+    };
   }
 }
