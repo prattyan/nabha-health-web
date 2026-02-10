@@ -1,3 +1,18 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+
+import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import "./i18n";
+import "./index.css";
+
+const root = document.getElementById("root");
+
+if (!root) {
+  throw new Error("Root element not found");
+}
+
+createRoot(root).render(
 import { StrictMode, Component, ErrorInfo, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
