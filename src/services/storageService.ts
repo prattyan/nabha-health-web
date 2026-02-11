@@ -32,6 +32,11 @@ export class StorageService {
 
   // Enhanced setItem with data integrity checks
   setItem(key: string, value: string): void {
+      // Offline Queue Logic
+      if (key.startsWith(this.APP_PREFIX) && !navigator.onLine) {
+         this.addToSyncQueue(key, value);
+      }
+
     const prefixedKey = this.APP_PREFIX + key;
     const dataWithTimestamp = {
       data: value,
@@ -206,5 +211,50 @@ export class StorageService {
     } catch (error) {
       console.warn('IndexedDB backup removal failed:', error);
     }
+  }
+
+  // Offline Sync Queue Implementation
+  public addToSyncQueue(key: string, value: string) {
+    const queue = this.getSyncQueue();
+    queue.push({
+      id: crypto.randomUUID(),
+      key,
+      value,
+      timestamp: Date.now(),
+      retryCount: 0
+    });
+    // Use raw localStorage to avoid recursion loop with setItem
+    localStorage.setItem(this.APP_PREFIX + 'sync_queue', JSON.stringify(queue));
+  }
+
+  private getSyncQueue(): any[] {
+    const queue = localStorage.getItem(this.APP_PREFIX + 'sync_queue');
+    return queue ? JSON.parse(queue) : [];
+  }
+
+  public async processSyncQueue(): Promise<void> {
+    if (!navigator.onLine) return;
+
+    const queue = this.getSyncQueue();
+    if (queue.length === 0) return;
+
+    console.log(`Processing ${queue.length} offline items...`);
+    const remainingQueue = [];
+
+    for (const item of queue) {
+      try {
+        // Simulate sync to server
+        console.log(`Synced item ${item.key} to cloud`);
+        // Actual server sync code would go here
+      } catch (e) {
+        console.error(`Failed to sync ${item.key}`, e);
+        if (item.retryCount < 3) {
+          item.retryCount++;
+          remainingQueue.push(item);
+        }
+      }
+    }
+
+    localStorage.setItem(this.APP_PREFIX + 'sync_queue', JSON.stringify(remainingQueue));
   }
 }

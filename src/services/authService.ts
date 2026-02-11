@@ -5,7 +5,15 @@ import type { DoctorMetrics, SystemMetrics } from '../types/admin';
 const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
 
+
+interface SessionData {
+  user: User;
+  expiry: number;
+}
+
 export class AuthService {
+  private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
   getUserById(id: string): User | null {
     const users = this.getUsers();
     return users.find(u => u.id === id) || null;
@@ -264,8 +272,12 @@ export class AuthService {
         return { success: false, message: 'Invalid email or password' };
       }
 
-      // Store current user
-      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      // Store current user with session expiry
+      const sessionData: SessionData = {
+        user,
+        expiry: Date.now() + this.SESSION_DURATION
+      };
+      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
 
       return { success: true, message: 'Login successful', user };
     } catch {
@@ -278,8 +290,53 @@ export class AuthService {
   }
 
   getCurrentUser(): User | null {
-    const user = this.storageService.getItem(CURRENT_USER_KEY);
-    return user ? JSON.parse(user) : null;
+    try {
+      const stored = this.storageService.getItem(CURRENT_USER_KEY);
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      
+      // Handle legacy session (just user object)
+      if (!parsed.expiry && parsed.id) {
+        // Upgrade legacy session
+        const sessionData: SessionData = {
+          user: parsed,
+          expiry: Date.now() + this.SESSION_DURATION
+        };
+        this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+        return parsed;
+      }
+
+      // Handle new session format
+      if (parsed.expiry) {
+        if (Date.now() > parsed.expiry) {
+          this.logout();
+          return null;
+        }
+        
+        // Auto-refresh session if active
+        const timeRemaining = parsed.expiry - Date.now();
+        if (timeRemaining < this.SESSION_DURATION / 2) {
+            this.refreshSession(parsed.user);
+        }
+
+        return parsed.user;
+      }
+
+      return null;
+    } catch (e) {
+      console.error('Error parsing session data', e);
+      this.logout();
+      return null;
+    }
+  }
+
+  private refreshSession(user: User): void {
+      const sessionData: SessionData = {
+          user,
+          expiry: Date.now() + this.SESSION_DURATION
+      };
+      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
   }
 
   isAuthenticated(): boolean {
@@ -288,10 +345,6 @@ export class AuthService {
 
   getAllUsers(): User[] {
     return this.getUsers();
-  }
-
-  getUsersByRole(role: string): User[] {
-    return this.getUsers().filter(user => user.role === role);
   }
 
   getAvailableDoctors(): User[] {

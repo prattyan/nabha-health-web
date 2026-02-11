@@ -116,4 +116,23 @@ export class InventoryService {
       await new Promise(resolve => setTimeout(resolve, 1500));
       return { synced: 0, errors: [] }; // Mock response
   }
+
+  // Auto-sync mechanism with throttling
+  private lastSyncTime: number = 0;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  public async autoSync(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastSyncTime > this.CACHE_DURATION) {
+      console.log('Auto-syncing inventory...');
+      try {
+        await this.syncWithDistributor();
+        this.lastSyncTime = now;
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+      }
+    } else {
+      console.log('Inventory sync skipped (cached)');
+    }
+  }
 }

@@ -30,8 +30,14 @@ export default function HealthRecordsModal({
   
   const [activeTab, setActiveTab] = useState('records');
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Reset visible count when modal opens or tab changes
+  useEffect(() => {
+    if (isOpen) setVisibleCount(10);
+  }, [isOpen, activeTab]);
+
   // Form states
   const [newRecord, setNewRecord] = useState({
     recordType: 'visit' as const,
@@ -287,7 +293,7 @@ export default function HealthRecordsModal({
               </div>
             ) : (
               <div className="space-y-4">
-                {healthRecords.map((record) => (
+                {healthRecords.slice(0, visibleCount).map((record) => (
                   <div key={record.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
@@ -324,6 +330,14 @@ export default function HealthRecordsModal({
                     </div>
                   </div>
                 ))}
+                {healthRecords.length > visibleCount && (
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 10)}
+                    className="w-full py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 font-medium"
+                  >
+                    Load More Records
+                  </button>
+                )}
               </div>
             )}
           </div>
