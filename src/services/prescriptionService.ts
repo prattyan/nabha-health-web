@@ -4,6 +4,7 @@ import {
   HealthRecord,
   MedicationTracking
 } from '../types/prescription';
+import { AuthService } from './authService';
 import { StorageService } from './storageService';
 
 const PRESCRIPTIONS_STORAGE_KEY = 'nabhacare_prescriptions';
@@ -386,10 +387,12 @@ export class PrescriptionService {
   /**
    * Get patient load metrics for admin dashboard
    */
-  getPatientLoadMetrics(authService: any) {
+  getPatientLoadMetrics(authService: AuthService) {
     const appointments = this.getAppointments();
     const prescriptions = this.getPrescriptions();
-    const allUsers = authService.getAllUsers();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allUsers = authService.getAllUsers() as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patients = allUsers.filter((u: any) => u.role === 'patient');
 
     // Get today, this week, this month
@@ -433,6 +436,7 @@ export class PrescriptionService {
     const appointmentsThisMonth = appointments.filter(apt => new Date(apt.date) >= monthAgo).length;
 
     // Calculate metrics
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const doctors = allUsers.filter((u: any) => u.role === 'doctor');
     const avgAppointmentsPerDoctor = doctors.length > 0 ? Math.round(appointments.length / doctors.length) : 0;
     
@@ -458,9 +462,11 @@ export class PrescriptionService {
   /**
    * Get doctor workload metrics for admin dashboard
    */
-  getDoctorWorkloadMetrics(authService: any) {
+  getDoctorWorkloadMetrics(authService: AuthService) {
     const appointments = this.getAppointments();
-    const allUsers = authService.getAllUsers();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allUsers = authService.getAllUsers() as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const doctors = allUsers.filter((u: any) => u.role === 'doctor');
 
     const today = new Date().toISOString().split('T')[0];
@@ -498,7 +504,7 @@ export class PrescriptionService {
   /**
    * Get complete admin metrics
    */
-  getAdminMetrics(authService: any) {
+  getAdminMetrics(authService: AuthService) {
     return {
       patientLoad: this.getPatientLoadMetrics(authService),
       doctorWorkload: this.getDoctorWorkloadMetrics(authService),

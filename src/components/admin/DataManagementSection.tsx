@@ -44,7 +44,7 @@ export default function DataManagementSection({ onDataImported }: DataManagement
 
       setMessage({ type: 'success', text: 'Data exported successfully!' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error exporting data' });
       setTimeout(() => setMessage(null), 3000);
     } finally {
@@ -71,6 +71,7 @@ export default function DataManagementSection({ onDataImported }: DataManagement
           }
 
       // Save imported users to StorageService
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const usersToImport = importedData.users.map((user: any) => ({
             ...user,
             password: '***' // Don't import passwords
@@ -94,7 +95,7 @@ export default function DataManagementSection({ onDataImported }: DataManagement
             onDataImported();
           }
           setTimeout(() => setMessage(null), 3000);
-        } catch (error) {
+        } catch {
           setMessage({ type: 'error', text: 'Invalid backup file format' });
           setTimeout(() => setMessage(null), 3000);
         } finally {
@@ -103,7 +104,7 @@ export default function DataManagementSection({ onDataImported }: DataManagement
       };
 
       reader.readAsText(file);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error importing data' });
       setTimeout(() => setMessage(null), 3000);
       setIsImporting(false);

@@ -150,6 +150,12 @@ export default function PrescriptionModal({
         status: 'active'
       };
 
+      // In real app, we would upload the file here
+      if (selectedFile) {
+        console.log('Attaching file:', selectedFile.name);
+        // prescriptionData.attachmentUrl = await uploadFile(selectedFile);
+      }
+
       prescriptionService.createPrescription(prescriptionData);
       onPrescriptionCreated();
       onClose();

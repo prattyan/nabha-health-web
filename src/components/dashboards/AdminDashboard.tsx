@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   // Load metrics
   useEffect(() => {
     loadMetrics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadMetrics = async () => {

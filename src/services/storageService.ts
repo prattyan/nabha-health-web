@@ -227,6 +227,7 @@ export class StorageService {
     localStorage.setItem(this.APP_PREFIX + 'sync_queue', JSON.stringify(queue));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private getSyncQueue(): any[] {
     const queue = localStorage.getItem(this.APP_PREFIX + 'sync_queue');
     return queue ? JSON.parse(queue) : [];

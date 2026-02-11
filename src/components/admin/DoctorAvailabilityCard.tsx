@@ -54,6 +54,7 @@ export default function DoctorAvailabilityCard({ metrics, isLoading }: DoctorAva
           <p className="text-sm text-gray-600 mb-2">Doctors by Specialization</p>
           <div className="space-y-2">
             {metrics.doctorsBySpecialization.length > 0 ? (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               metrics.doctorsBySpecialization.map((spec: any) => (
                 <div key={spec.specialization} className="flex justify-between items-center bg-gray-50 p-2 rounded">
                   <span className="text-sm text-gray-700">{spec.specialization}</span>
@@ -71,9 +72,12 @@ export default function DoctorAvailabilityCard({ metrics, isLoading }: DoctorAva
           <p className="text-sm text-gray-600 mb-2">Top Doctors (by Rating)</p>
           <div className="space-y-2">
             {metrics.doctorWorkload
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .filter((d: any) => d.rating > 0)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .sort((a: any, b: any) => b.rating - a.rating)
               .slice(0, 3)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .map((doc: any) => (
                 <div key={doc.doctorId} className="flex justify-between items-center bg-gray-50 p-2 rounded">
                   <div>
@@ -85,6 +89,7 @@ export default function DoctorAvailabilityCard({ metrics, isLoading }: DoctorAva
                   </div>
                 </div>
               ))}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {metrics.doctorWorkload.filter((d: any) => d.rating > 0).length === 0 && (
               <p className="text-sm text-gray-500">No ratings available</p>
             )}
