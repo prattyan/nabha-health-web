@@ -375,7 +375,7 @@ export default function AdminDashboard() {
 
         {/* Data Management Tab */}
         {activeTab === 'data' && (
-          <DataManagementSection isLoading={isLoading} />
+          <DataManagementSection />
         )}
 
         {/* Activity Logs Tab */}
