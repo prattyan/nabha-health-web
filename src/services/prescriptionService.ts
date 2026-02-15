@@ -1,7 +1,8 @@
 import { 
   Prescription, 
   Appointment, 
-  HealthRecord
+  HealthRecord,
+  MedicationTracking
 } from '../types/prescription';
 import { StorageService } from './storageService';
 
@@ -35,15 +36,15 @@ export class PrescriptionService {
   getMedicationTrackingByPatient(patientId: string) {
     const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
     if (!trackingRaw) return [];
-    const tracking = JSON.parse(trackingRaw);
-    return tracking.filter((t: any) => t.patientId === patientId);
+    const tracking = JSON.parse(trackingRaw) as MedicationTracking[];
+    return tracking.filter((t) => t.patientId === patientId);
   }
 
   updateMedicationStatus(trackingId: string, status: 'taken' | 'missed' | 'skipped', actualTime?: string) {
     const trackingRaw = this.storageService.getItem(PrescriptionService.MEDICATION_TRACKING_KEY);
     if (!trackingRaw) return false;
-    const tracking = JSON.parse(trackingRaw);
-    const idx = tracking.findIndex((t: any) => t.id === trackingId);
+    const tracking = JSON.parse(trackingRaw) as MedicationTracking[];
+    const idx = tracking.findIndex((t) => t.id === trackingId);
     if (idx === -1) return false;
     tracking[idx].status = status;
     if (actualTime) tracking[idx].actualTime = actualTime;
@@ -377,6 +378,143 @@ export class PrescriptionService {
       totalPrescriptions: prescriptions.length,
       activePrescriptions: prescriptions.filter(p => p.status === 'active').length,
       totalHealthRecords: healthRecords.length
+    };
+  }
+
+  // ========== ADMIN METRICS METHODS ==========
+
+  /**
+   * Get patient load metrics for admin dashboard
+   */
+  getPatientLoadMetrics(authService: any) {
+    const appointments = this.getAppointments();
+    const prescriptions = this.getPrescriptions();
+    const allUsers = authService.getAllUsers();
+    const patients = allUsers.filter((u: any) => u.role === 'patient');
+
+    // Get today, this week, this month
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Count active patients (those with recent appointments or prescriptions)
+    const activePatientIds = new Set<string>();
+    appointments.forEach(apt => {
+      if (new Date(apt.date) >= weekAgo) {
+        activePatientIds.add(apt.patientId);
+      }
+    });
+    prescriptions.forEach(presc => {
+      if (new Date(presc.createdAt) >= weekAgo) {
+        activePatientIds.add(presc.patientId);
+      }
+    });
+
+    // Count new registrations
+    const newThisWeek = patients.filter(p => new Date(p.createdAt) >= weekAgo).length;
+    const newThisMonth = patients.filter(p => new Date(p.createdAt) >= monthAgo).length;
+
+    // Group patients by village
+    const patientsByVillageMap: { [key: string]: number } = {};
+    patients.forEach(p => {
+      const village = p.village || 'Unknown';
+      patientsByVillageMap[village] = (patientsByVillageMap[village] || 0) + 1;
+    });
+
+    const patientsByVillage = Object.entries(patientsByVillageMap).map(([village, count]) => ({
+      village,
+      count
+    }));
+
+    // Appointment load
+    const appointmentsToday = appointments.filter(apt => apt.date === todayStr).length;
+    const appointmentsThisWeek = appointments.filter(apt => new Date(apt.date) >= weekAgo).length;
+    const appointmentsThisMonth = appointments.filter(apt => new Date(apt.date) >= monthAgo).length;
+
+    // Calculate metrics
+    const doctors = allUsers.filter((u: any) => u.role === 'doctor');
+    const avgAppointmentsPerDoctor = doctors.length > 0 ? Math.round(appointments.length / doctors.length) : 0;
+    
+    const noShowAppointments = appointments.filter(apt => apt.status === 'no_show').length;
+    const appointmentNoShowRate = appointments.length > 0 ? Math.round((noShowAppointments / appointments.length) * 100) : 0;
+
+    return {
+      totalPatients: patients.length,
+      activePatients: activePatientIds.size,
+      newRegistrationsThisWeek: newThisWeek,
+      newRegistrationsThisMonth: newThisMonth,
+      patientsByVillage,
+      appointmentLoad: {
+        today: appointmentsToday,
+        thisWeek: appointmentsThisWeek,
+        thisMonth: appointmentsThisMonth
+      },
+      avgAppointmentsPerDoctor,
+      appointmentNoShowRate
+    };
+  }
+
+  /**
+   * Get doctor workload metrics for admin dashboard
+   */
+  getDoctorWorkloadMetrics(authService: any) {
+    const appointments = this.getAppointments();
+    const allUsers = authService.getAllUsers();
+    const doctors = allUsers.filter((u: any) => u.role === 'doctor');
+
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+    // Update doctor workload with actual appointment data
+    const doctorWorkload = doctors.map(doc => {
+      const doctorAppointments = appointments.filter(apt => apt.doctorId === doc.id);
+      const appointmentsToday = doctorAppointments.filter(apt => apt.date === today).length;
+      const appointmentsThisWeek = doctorAppointments.filter(apt => apt.date >= weekAgoStr).length;
+
+      return {
+        doctorId: doc.id,
+        doctorName: `${doc.firstName} ${doc.lastName}`,
+        specialization: doc.specialization || 'General',
+        appointmentsToday,
+        appointmentsThisWeek,
+        totalPatients: doc.totalPatients || doctorAppointments.length,
+        totalConsultations: doc.totalConsultations || doctorAppointments.filter(apt => apt.status === 'completed').length,
+        rating: doc.rating || 0
+      };
+    });
+
+    return {
+      totalDoctors: doctors.length,
+      doctorWorkload,
+      avgAppointmentsPerDoctorToday: doctorWorkload.length > 0 
+        ? Math.round(doctorWorkload.reduce((sum, d) => sum + d.appointmentsToday, 0) / doctorWorkload.length)
+        : 0
+    };
+  }
+
+  /**
+   * Get complete admin metrics
+   */
+  getAdminMetrics(authService: any) {
+    return {
+      patientLoad: this.getPatientLoadMetrics(authService),
+      doctorWorkload: this.getDoctorWorkloadMetrics(authService),
+      appointmentStats: {
+        total: this.getAppointments().length,
+        scheduled: this.getAppointments().filter(a => a.status === 'scheduled').length,
+        completed: this.getAppointments().filter(a => a.status === 'completed').length,
+        cancelled: this.getAppointments().filter(a => a.status === 'cancelled').length,
+        noShow: this.getAppointments().filter(a => a.status === 'no_show').length
+      },
+      prescriptionStats: {
+        total: this.getPrescriptions().length,
+        active: this.getPrescriptions().filter(p => p.status === 'active').length,
+        completed: this.getPrescriptions().filter(p => p.status === 'completed').length
+      },
+      timestamp: new Date().toISOString()
     };
   }
 

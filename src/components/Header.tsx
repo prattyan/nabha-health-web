@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage, Language } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
 
 interface HeaderProps {

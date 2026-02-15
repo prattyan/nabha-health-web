@@ -86,7 +86,7 @@ export default function PrescriptionViewModal({
               <h3 className="font-semibold text-gray-900">Prescribed Medicines</h3>
             </div>
             <div className="space-y-4">
-              {prescription.medicines.map((medicine, index) => (
+              {prescription.medicines.map((medicine) => (
                 <div key={medicine.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-semibold text-gray-900">{medicine.name}</h4>
