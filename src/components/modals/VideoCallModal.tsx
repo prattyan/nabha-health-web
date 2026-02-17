@@ -17,25 +17,84 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
 
   React.useEffect(() => {
     if (!isOpen) return;
-    // Connect to signaling server
-    wsRef.current = new WebSocket('ws://localhost:8080');
-    wsRef.current.onmessage = async (event) => {
+    
+    // Connection handling with retry logic
+    let reconnectAttempts = 0;
+    const maxReconnects = 3;
+    
+    const connectSignaling = () => {
+      wsRef.current = new WebSocket('ws://localhost:8080');
+      
+      wsRef.current.onopen = async () => {
+         console.log('Connected to signaling server');
+         reconnectAttempts = 0; // Reset attempts on success
+         
+         // If first to join (or just ready), initiate offer logic
+          if (peerConnectionRef.current && peerConnectionRef.current.signalingState === 'stable') {
+              // Wait a sec for peer if needed, but only if we are the "initiator" conceptually
+              // For simplicity, we create offer if we don't receive one shortly
+              setTimeout(async () => {
+                  try {
+                    if (peerConnectionRef.current?.signalingState === 'stable') {
+                      const offer = await peerConnectionRef.current.createOffer();
+                      await peerConnectionRef.current.setLocalDescription(offer);
+                      if (wsRef.current?.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({ roomId, type: 'offer', payload: offer }));
+                      }
+                    }
+                  } catch (e) {
+                      console.error("Error creating offer:", e);
+                  }
+              }, 1500); 
+          }
+      };
+
+      wsRef.current.onclose = () => {
+          console.log('Signaling disconnected');
+          if (reconnectAttempts < maxReconnects && isOpen) {
+              reconnectAttempts++;
+              setTimeout(connectSignaling, 2000 * reconnectAttempts);
+          } else if (isOpen) {
+               setError('Lost connection to signaling server.');
+          }
+      };
+
+      wsRef.current.onerror = (err) => {
+          console.error("WebSocket error:", err);
+          // onclose will be called
+      };
+
+      wsRef.current.onmessage = async (event) => {
       const { type, payload } = JSON.parse(event.data);
       if (!peerConnectionRef.current) return;
-      if (type === 'offer') {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-        const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
-        wsRef.current?.send(JSON.stringify({ roomId, type: 'answer', payload: answer }));
-      } else if (type === 'answer') {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-      } else if (type === 'ice') {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload));
+      try {
+        if (type === 'offer') {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
+          const answer = await peerConnectionRef.current.createAnswer();
+          await peerConnectionRef.current.setLocalDescription(answer);
+          wsRef.current?.send(JSON.stringify({ roomId, type: 'answer', payload: answer }));
+        } else if (type === 'answer') {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
+        } else if (type === 'ice') {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload));
+        }
+      } catch (e) {
+          console.error("Error handling signaling message:", e);
       }
     };
+    }
 
-    // Get local media
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    connectSignaling();
+
+    // Get local media with low-bandwidth constraints
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 640, max: 1280 },
+        height: { ideal: 480, max: 720 },
+        frameRate: { ideal: 15, max: 24 } // Reduced frame rate for better stability on low bandwidth
+      },
+      audio: true
+    })
       .then(stream => {
         localStreamRef.current = stream;
         if (localVideoRef.current) {
@@ -57,16 +116,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
           }
         };
         // If first to join, create offer
-        wsRef.current!.onopen = async () => {
-          // Wait a moment for other peer to join
-          setTimeout(async () => {
-            if (pc.signalingState === 'stable') {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              wsRef.current?.send(JSON.stringify({ roomId, type: 'offer', payload: offer }));
-            }
-          }, 1000);
-        };
+        // moved to onopen
       })
       .catch(() => setError('Could not access camera/microphone'));
 
