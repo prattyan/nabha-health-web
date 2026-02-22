@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../db.js';
 import { requireAuth } from '../http/authMiddleware.js';
 import { parseBody } from '../http/validate.js';
 import { forbidden, notFound } from '../http/errors.js';

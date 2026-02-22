@@ -125,7 +125,7 @@ export class SyncService {
 
         if (res.conflicts.length) {
             const existingRaw = this.storage.getItem(CONFLICTS_KEY);
-            const existing = existingRaw ? (JSON.parse(existingRaw) as any[]) : [];
+            const existing = existingRaw ? (JSON.parse(existingRaw) as unknown[]) : [];
             this.storage.setItem(CONFLICTS_KEY, JSON.stringify([...existing, ...res.conflicts]));
         }
     } catch (e) {
@@ -141,12 +141,12 @@ export class SyncService {
     try {
         const res = await this.api.get<{
         serverTime: string;
-        appointments: any[];
-        inventory: any[];
-        records?: any[];
-        prescriptions?: any[];
-        triageLogs?: any[];
-        followups?: any[];
+        appointments: unknown[];
+        inventory: unknown[];
+        records?: unknown[];
+        prescriptions?: unknown[];
+        triageLogs?: unknown[];
+        followups?: unknown[];
         }>(`/sync/pull${qs}`);
 
         this.storage.setItem(LAST_PULL_KEY, res.serverTime);
@@ -174,24 +174,28 @@ export class SyncService {
     }
   }
 
-  private mergeByKey(storageKey: string, incoming: any[], keyField: string, updatedField: string) {
+  private mergeByKey(storageKey: string, incoming: unknown[], keyField: string, updatedField: string) {
     const raw = this.storage.getItem(storageKey);
-    const existing: any[] = raw ? JSON.parse(raw) : [];
-    const map = new Map<string, any>();
+    const existing: unknown[] = raw ? JSON.parse(raw) : [];
+    const map = new Map<string, unknown>();
     for (const item of existing) {
-      const key = item?.[keyField];
+      if (!item || typeof item !== 'object') continue;
+      const rec = item as Record<string, unknown>;
+      const key = rec[keyField];
       if (typeof key === 'string') map.set(key, item);
     }
     for (const item of incoming) {
-      const key = item?.[keyField];
+      if (!item || typeof item !== 'object') continue;
+      const rec = item as Record<string, unknown>;
+      const key = rec[keyField];
       if (typeof key !== 'string') continue;
-      const prev = map.get(key);
+      const prev = map.get(key) as Record<string, unknown> | undefined;
       if (!prev) {
         map.set(key, item);
         continue;
       }
-      const prevUpdated = prev?.[updatedField] || '';
-      const nextUpdated = item?.[updatedField] || '';
+      const prevUpdated = (prev[updatedField] as string) || '';
+      const nextUpdated = (rec[updatedField] as string) || '';
       map.set(key, nextUpdated >= prevUpdated ? item : prev);
     }
     this.storage.setItem(storageKey, JSON.stringify(Array.from(map.values())));

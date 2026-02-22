@@ -24,13 +24,11 @@ async function main() {
     await prisma.$executeRawUnsafe(stmt);
   }
 
-  // eslint-disable-next-line no-console
   console.log(`Applied ${statements.length} RLS statements`);
 }
 
 main()
   .catch((e) => {
-    // eslint-disable-next-line no-console
     console.error(e);
     process.exitCode = 1;
   })

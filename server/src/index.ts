@@ -27,6 +27,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', apiRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  void _next; // Express error handler requires 4 arguments
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message, code: err.code });
     return;

@@ -5,6 +5,11 @@ type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 const ACCESS_TOKEN_KEY = 'nabhacare_access_token';
 const REFRESH_TOKEN_KEY = 'nabhacare_refresh_token';
 
+interface ApiError extends Error {
+  status?: number;
+  payload?: unknown;
+}
+
 export class ApiClient {
   private static instance: ApiClient;
   private storage = StorageService.getInstance();
@@ -33,6 +38,7 @@ export class ApiClient {
   }
 
   private getBaseUrl(): string {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const envBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
     // Default: use Vite proxy (/api -> localhost:3001)
     return envBase ?? '/api';
@@ -57,9 +63,9 @@ export class ApiClient {
 
     if (!res.ok) {
       const message = (json && (json.message || json.error)) || `HTTP ${res.status}`;
-      const err = new Error(message);
-      (err as any).status = res.status;
-      (err as any).payload = json;
+      const err = new Error(message) as ApiError;
+      err.status = res.status;
+      err.payload = json;
       throw err;
     }
     return json as T;
@@ -77,7 +83,7 @@ export class ApiClient {
     try {
       return await this.rawRequest<T>(method, path, body, accessToken);
     } catch (e) {
-      const status = (e as any)?.status;
+      const status = (e as ApiError)?.status;
       if (status === 401) {
         await this.refreshTokens();
         return this.rawRequest<T>(method, path, body, this.getAccessToken());

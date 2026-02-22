@@ -81,8 +81,8 @@ function mapPrescriptionStatus(status?: string) {
   }
 }
 
-const ensurePlainObject = (value: unknown): Record<string, any> => {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, any>;
+const ensurePlainObject = (value: unknown): Record<string, unknown> => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
   throw badRequest('Invalid data payload', 'VALIDATION_ERROR');
 };
 
@@ -324,6 +324,7 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
                 scheduledAt,
                 durationMinutes: dto.duration,
                 type: dto.type,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 status: mapStatus(dto.status) as any,
                 priority: dto.priority,
                 reasonEnc: encryptString(dto.reason),
@@ -353,6 +354,7 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
               scheduledAt,
               durationMinutes: dto.duration,
               type: dto.type,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               status: mapStatus(dto.status) as any,
               priority: dto.priority,
               reasonEnc: encryptString(dto.reason),
@@ -579,6 +581,7 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
                 notesEnc: dto.notes ? encryptString(dto.notes) : null,
                 vitalSignsJson: dto.vitalSigns ? (dto.vitalSigns as never) : undefined,
                 attachmentsJson: dto.attachments ? (dto.attachments as never) : undefined,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 status: mapPrescriptionStatus(dto.status) as any,
                 items: {
                   create: dto.medicines.map((m) => ({
@@ -612,6 +615,7 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
               notesEnc: dto.notes ? encryptString(dto.notes) : null,
               vitalSignsJson: dto.vitalSigns ? (dto.vitalSigns as never) : undefined,
               attachmentsJson: dto.attachments ? (dto.attachments as never) : undefined,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               status: mapPrescriptionStatus(dto.status) as any,
               items: {
                 create: dto.medicines.map((m) => ({
@@ -838,7 +842,7 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
           applied.push({ opId: op.opId, entityId: created.id, newVersion: created.version });
           continue;
         }
-      } catch (e) {
+      } catch {
         conflicts.push({ opId: op.opId, entityId: op.entityId ?? 'unknown', serverVersion: 0, reason: 'REJECTED' });
       }
     }
@@ -1089,7 +1093,38 @@ syncRouter.get('/pull', requireAuth, async (req, res) => {
           }
         });
 
-    const prescriptions = (rxRows as any[]).map((p) => ({
+interface SyncMedicineItem {
+  id: string;
+  medicineName: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+  quantity?: number;
+  timesToTake?: string[];
+}
+
+interface SyncPrescriptionRow {
+  id: string;
+  version: number;
+  patientId: string;
+  patient?: { firstName?: string; lastName?: string };
+  doctorId: string;
+  appointmentId?: string;
+  issuedAt: Date;
+  diagnosisEnc?: string;
+  symptomsEnc?: string;
+  items: SyncMedicineItem[];
+  notesEnc?: string;
+  followUpAt?: Date;
+  status: string;
+  vitalSignsJson?: unknown;
+  attachmentsJson?: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const prescriptions = (rxRows as unknown as SyncPrescriptionRow[]).map((p) => ({
       id: p.id,
       version: p.version,
       patientId: p.patientId,
@@ -1099,7 +1134,7 @@ syncRouter.get('/pull', requireAuth, async (req, res) => {
       date: p.issuedAt.toISOString().slice(0, 10),
       diagnosis: p.diagnosisEnc ? decryptString(p.diagnosisEnc) : '',
       symptoms: p.symptomsEnc ? decryptString(p.symptomsEnc) : '',
-      medicines: p.items.map((i: any) => ({
+      medicines: p.items.map((i) => ({
         id: i.id,
         name: i.medicineName,
         dosage: i.dosage ?? '',

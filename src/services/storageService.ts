@@ -3,7 +3,7 @@ import { openDB, DBSchema, IDBPDatabase } from 'idb';
 interface NabhaDB extends DBSchema {
   keyval: {
     key: string;
-    value: any;
+    value: unknown;
   };
 }
 

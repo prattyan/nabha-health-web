@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, Upload, Archive, AlertCircle } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { StorageService } from '../../services/storageService';
+import type { User } from '../../types/auth';
 
 interface DataManagementSectionProps {
   onDataImported?: () => void;
@@ -71,8 +72,7 @@ export default function DataManagementSection({ onDataImported }: DataManagement
           }
 
       // Save imported users to StorageService
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const usersToImport = importedData.users.map((user: any) => ({
+          const usersToImport = importedData.users.map((user: User) => ({
             ...user,
             password: '***' // Don't import passwords
           }));

@@ -1,9 +1,12 @@
 import { User, LoginCredentials, RegisterData } from '../types/auth';
+import { ServerUser } from '../types/serverTypes';
 import { StorageService } from './storageService';
 import type { DoctorMetrics, SystemMetrics } from '../types/admin';
+import { ApiClient } from './apiClient';
 
 const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
+const CACHED_DOCTORS_KEY = 'nabhacare_cached_doctors';
 
 
 interface SessionData {
@@ -13,6 +16,69 @@ interface SessionData {
 
 export class AuthService {
   private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private api = ApiClient.getInstance();
+
+  private mapServerRole(role: string): User['role'] {
+    switch (role) {
+      case 'PATIENT':
+        return 'patient';
+      case 'DOCTOR':
+        return 'doctor';
+      case 'HEALTH_WORKER':
+        return 'healthworker';
+      case 'ADMIN':
+        return 'admin';
+      case 'PHARMACY':
+        // Frontend has no pharmacy role; treat as healthworker for now
+        return 'healthworker';
+      default:
+        return 'patient';
+    }
+  }
+
+  private toFrontendUser(serverUser: ServerUser, password: string = ''): User {
+    return {
+      id: serverUser.id,
+      email: serverUser.email ?? '',
+      password,
+      firstName: serverUser.firstName ?? '',
+      lastName: serverUser.lastName ?? '',
+      phone: serverUser.phone ?? '',
+      role: this.mapServerRole(serverUser.role),
+      createdAt: serverUser.createdAt ?? new Date().toISOString(),
+      updatedAt: serverUser.updatedAt ?? new Date().toISOString(),
+      isActive: serverUser.isActive ?? true,
+      registrationComplete: true,
+      specialization: serverUser.specialization ?? undefined,
+      licenseNumber: serverUser.licenseNumber ?? undefined,
+      village: serverUser.village ?? undefined,
+      workLocation: serverUser.workLocation ?? undefined,
+      experience: serverUser.experience ?? undefined,
+      availableDates: serverUser.availableDates ?? undefined
+    };
+  }
+
+  private async refreshDoctorsFromServer(): Promise<void> {
+    if (!navigator.onLine) return;
+    if (!this.api.getAccessToken()) return;
+    const res = await this.api.get<{ doctors: Array<{ id: string; firstName: string; lastName: string; specialization?: string; village?: string }> }>('/users/doctors');
+    const doctors: User[] = res.doctors.map((d) => ({
+      id: d.id,
+      email: '',
+      password: '',
+      firstName: d.firstName,
+      lastName: d.lastName,
+      phone: '',
+      role: 'doctor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isActive: true,
+      registrationComplete: true,
+      specialization: d.specialization,
+      village: d.village
+    }));
+    this.storageService.setItem(CACHED_DOCTORS_KEY, JSON.stringify(doctors));
+  }
 
   getUserById(id: string): User | null {
     const users = this.getUsers();
@@ -21,6 +87,21 @@ export class AuthService {
   
   getUsersByRole(role: string): User[] {
     const users = this.getUsers();
+    if (role === 'doctor') {
+      // Fire-and-forget refresh
+      this.refreshDoctorsFromServer().catch(() => undefined);
+      const cachedRaw = this.storageService.getItem(CACHED_DOCTORS_KEY);
+      let cached: User[] = [];
+      try {
+        const parsed = cachedRaw ? JSON.parse(cachedRaw) : [];
+        cached = Array.isArray(parsed) ? (parsed as User[]) : [];
+      } catch { cached = []; }
+      const merged = [...users.filter(u => u.role === role), ...cached];
+      // De-dup by id
+      const map = new Map<string, User>();
+      merged.forEach(u => map.set(u.id, u));
+      return Array.from(map.values());
+    }
     return users.filter(u => u.role === role);
   }
 
@@ -38,7 +119,7 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-expect-error - Dynamic import to avoid circular dependency
+
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
@@ -106,11 +187,33 @@ export class AuthService {
 
   private getUsers(): User[] {
     const users = this.storageService.getItem(USERS_STORAGE_KEY);
-    const parsedUsers = users ? JSON.parse(users) : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsedUsers: any = users ? JSON.parse(users) : [];
     
+    if (!Array.isArray(parsedUsers)) {
+      // Handle potential object wrapper or invalid data
+      if (parsedUsers && typeof parsedUsers === 'object' && Array.isArray(parsedUsers.users)) {
+        parsedUsers = parsedUsers.users;
+      } else if (parsedUsers && typeof parsedUsers === 'object' && Array.isArray(parsedUsers.data)) {
+        parsedUsers = parsedUsers.data;
+      } else {
+        parsedUsers = [];
+      }
+    }
+
+    if (!Array.isArray(parsedUsers)) {
+      parsedUsers = [];
+    }
+    
+    // Safety check just in case
+    if (!Array.isArray(parsedUsers)) {
+       console.warn('AuthService: parsedUsers is not an array, resetting to empty array', parsedUsers);
+       parsedUsers = [];
+    }
+
     // Migrate existing users to new format if needed
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return parsedUsers.map((user: any) => ({
+    return (Array.isArray(parsedUsers) ? parsedUsers : []).map((user: any) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== undefined ? user.isActive : true,
@@ -143,6 +246,35 @@ export class AuthService {
       const validation = this.validateRegistrationData(data);
       if (!validation.isValid) {
         return { success: false, message: validation.message };
+      }
+
+      // Prefer server-side registration when online
+      if (navigator.onLine) {
+        try {
+          const res = await this.api.post<{ user: ServerUser; accessToken: string; refreshToken: string }>('/auth/register', {
+            email: data.email,
+            password: data.password,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            phone: data.phone,
+            role: data.role,
+            specialization: data.specialization,
+            licenseNumber: data.licenseNumber,
+            village: data.village,
+            workLocation: data.workLocation,
+            experience: data.experience
+          });
+          this.api.setTokens(res.accessToken, res.refreshToken);
+          const user = this.toFrontendUser(res.user, '');
+
+          const sessionData: SessionData = { user, expiry: Date.now() + this.SESSION_DURATION };
+          this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+          this.refreshDoctorsFromServer().catch(() => undefined);
+          return { success: true, message: 'Registration successful! Welcome to NabhaCare.', user };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Registration failed';
+          return { success: false, message: msg };
+        }
       }
 
       const users = this.getUsers();
@@ -265,6 +397,26 @@ export class AuthService {
 
   async login(credentials: LoginCredentials): Promise<{ success: boolean; message: string; user?: User }> {
     try {
+      // Prefer server-side login when online
+      if (navigator.onLine) {
+        try {
+          const res = await this.api.post<{ user: ServerUser; accessToken: string; refreshToken: string }>('/auth/login', credentials);
+          this.api.setTokens(res.accessToken, res.refreshToken);
+          const user = this.toFrontendUser(res.user, '');
+
+          const sessionData: SessionData = {
+            user,
+            expiry: Date.now() + this.SESSION_DURATION
+          };
+          this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+          this.refreshDoctorsFromServer().catch(() => undefined);
+          return { success: true, message: 'Login successful', user };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Login failed';
+          return { success: false, message: msg };
+        }
+      }
+
       const users = this.getUsers();
       const user = users.find(u => u.email === credentials.email && u.password === credentials.password);
 
@@ -286,6 +438,12 @@ export class AuthService {
   }
 
   logout(): void {
+    // Best-effort server logout
+    const refreshToken = this.api.getRefreshToken();
+    if (refreshToken && navigator.onLine) {
+      this.api.post('/auth/logout', { refreshToken }).catch(() => undefined);
+    }
+    this.api.clearTokens();
     this.storageService.removeItem(CURRENT_USER_KEY);
   }
 
@@ -296,6 +454,8 @@ export class AuthService {
 
       const parsed = JSON.parse(stored);
       
+      if (!parsed || typeof parsed !== 'object') return null;
+
       // Handle legacy session (just user object)
       if (!parsed.expiry && parsed.id) {
         // Upgrade legacy session

@@ -108,8 +108,7 @@ export default function PharmacyStockCard({ isLoading = false }: PharmacyStockCa
               Low Stock Alerts
             </p>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {lowStockAlerts.map((med: any) => (
+              {lowStockAlerts.map((med) => (
                 <div key={med.id} className="flex justify-between items-start bg-red-50 p-2 rounded border border-red-200">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{med.name}</p>

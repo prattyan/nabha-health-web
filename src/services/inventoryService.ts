@@ -1,4 +1,4 @@
-import { InventoryItem, InventoryTransaction } from '../types/inventory';
+import { InventoryItem } from '../types/inventory';
 import { StorageService } from './storageService';
 import { ApiClient } from './apiClient';
 import { SyncService } from './syncService';
@@ -61,9 +61,15 @@ export class InventoryService {
     return this.getInventory().find(i => i.sku === sku);
   }
 
-  public updateStock(itemId: string, quantityChange: number, type: 'in' | 'out' | 'adjustment', userId: string, reason?: string): InventoryItem | null {
+  public updateStock(itemId: string, quantityChange: number, _type: 'in' | 'out' | 'adjustment', _userId: string, _reason?: string): InventoryItem | null {
+    // Suppress unused variable checks
+    void _type;
+    void _userId;
+    void _reason;
+
     const items = this.getInventory();
     const index = items.findIndex(i => i.id === itemId);
+
     if (index === -1) return null;
 
     const item = items[index];
@@ -113,14 +119,5 @@ export class InventoryService {
           });
       }
       this.storage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(items));
-  }
-
-  // Aliases for UI compatibility
-  public async autoSync() {
-      return this.refreshInventory();
-  }
-  
-  public async syncWithDistributor() {
-      return this.refreshInventory();
   }
 }

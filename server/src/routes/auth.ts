@@ -206,6 +206,7 @@ authRouter.post('/login', async (req, res) => {
 
   // Do not return passwordHash
   const { passwordHash: _ph, ...safeUser } = user;
+  void _ph;
   res.json({
     user: {
       ...safeUser,
