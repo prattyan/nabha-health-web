@@ -136,6 +136,32 @@ export default function PrescriptionModal({
           };
         });
 
+      // File validation and upload simulation
+      let attachmentUrl = undefined;
+      if (selectedFile) {
+        // Validate file size (max 5MB)
+        if (selectedFile.size > 5 * 1024 * 1024) {
+          alert("File size exceeds 5MB limit.");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Validate file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(selectedFile.type)) {
+          alert("Invalid file type. Only PDF, JPG, and PNG are allowed.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Uploading file:', selectedFile.name);
+        // Simulate upload delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Generate a mock URL for the stored file
+        // In a real implementation, this would be the URL returned by the storage service
+        attachmentUrl = `https://storage.nabhacare.com/uploads/${Date.now()}_${selectedFile.name}`;
+      }
+
       const prescriptionData: Omit<Prescription, 'id' | 'createdAt' | 'updatedAt'> = {
         patientId,
         patientName,
@@ -147,8 +173,12 @@ export default function PrescriptionModal({
         medicines: processedMedicines,
         notes,
         followUpDate: followUpDate || undefined,
-        status: 'active'
+        status: 'active',
+        attachmentUrl // Save the attachment URL
       };
+
+      // In real app, we would upload the file here
+
 
       prescriptionService.createPrescription(prescriptionData);
       onPrescriptionCreated();
