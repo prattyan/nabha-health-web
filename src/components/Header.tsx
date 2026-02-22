@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage, Language } from '../contexts/LanguageContext';
+import { useLanguage, type Language } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
 
 interface HeaderProps {
@@ -56,7 +56,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
   const [isNavHovered, setIsNavHovered] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
-  const languages = [
+  const languages: { code: Language; name: string; nativeName: string }[] = [
     { code: 'en', name: 'English', nativeName: 'English' },
     { code: 'hi', name: 'Hindi', nativeName: 'हिंदी' },
     { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' }
@@ -133,7 +133,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         <motion.button
                           key={lang.code}
                           onClick={() => {
-                            setLanguage(lang.code as any);
+                            setLanguage(lang.code);
                             setShowLanguageMenu(false);
                           }}
                           className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
@@ -227,11 +227,11 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                       >
-                        {languages.map((lang, index) => (
+                        {languages.map((lang: { code: Language; name: string; nativeName: string }, index: number) => (
                           <motion.button
                             key={lang.code}
                             onClick={() => {
-                              setLanguage(lang.code as any);
+                              setLanguage(lang.code);
                               setShowLanguageMenu(false);
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
@@ -321,7 +321,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         {languages.map((lang) => (
                           <motion.button
                             key={lang.code}
-                            onClick={() => setLanguage(lang.code as any)}
+                            onClick={() => setLanguage(lang.code)}
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                               language === lang.code 
                                 ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-sm' 
@@ -373,7 +373,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         {languages.map((lang) => (
                           <motion.button
                             key={lang.code}
-                            onClick={() => setLanguage(lang.code as any)}
+                            onClick={() => setLanguage(lang.code)}
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                               language === lang.code 
                                 ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-sm' 

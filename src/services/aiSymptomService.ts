@@ -122,7 +122,15 @@ export class AISymptomService {
     const inputVector = await this.preprocess(symptoms);
 
     // 3. Inference
-    await this.model!.predict(inputVector);
+    if (this.model) {
+        try {
+            await this.model.predict(inputVector);
+        } catch (e) {
+            console.warn("Model inference failed, continuing with rule-based system", e);
+        }
+    } else {
+        console.warn("Model unavailable, falling back to rule-based system");
+    }
 
     // Mock meaningful results based on keywords (since model is mocked)
     const results = this.mockExpertSystem(symptoms);
