@@ -148,7 +148,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as Language)}
+                          onClick={() => setLanguage(lang.code as any)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 
@@ -180,7 +180,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as Language)}
+                          onClick={() => setLanguage(lang.code as any)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 
