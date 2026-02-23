@@ -31,10 +31,23 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>
-);
+import { StorageService } from './services/storageService';
+
+const initApp = async () => {
+  try {
+    // Initialize Offline DB before rendering to ensure Sync/Cache is ready
+    await StorageService.getInstance().init();
+  } catch (e) {
+    console.error("Failed to initialize storage service:", e);
+  }
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>
+  );
+};
+
+initApp();

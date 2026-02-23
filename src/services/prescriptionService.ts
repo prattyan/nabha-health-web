@@ -4,7 +4,10 @@ import {
   HealthRecord,
   MedicationTracking
 } from '../types/prescription';
+import { AuthService } from './authService';
 import { StorageService } from './storageService';
+import { AuthService } from './authService';
+import { User } from '../types/auth'; // Ensure this path is correct
 
 const PRESCRIPTIONS_STORAGE_KEY = 'nabhacare_prescriptions';
 const APPOINTMENTS_STORAGE_KEY = 'nabhacare_appointments';
@@ -386,11 +389,11 @@ export class PrescriptionService {
   /**
    * Get patient load metrics for admin dashboard
    */
-  getPatientLoadMetrics(authService: any) {
+  getPatientLoadMetrics(authService: AuthService) {
     const appointments = this.getAppointments();
     const prescriptions = this.getPrescriptions();
     const allUsers = authService.getAllUsers();
-    const patients = allUsers.filter((u: any) => u.role === 'patient');
+    const patients = allUsers.filter((u: User) => u.role === 'patient');
 
     // Get today, this week, this month
     const today = new Date();
@@ -433,7 +436,7 @@ export class PrescriptionService {
     const appointmentsThisMonth = appointments.filter(apt => new Date(apt.date) >= monthAgo).length;
 
     // Calculate metrics
-    const doctors = allUsers.filter((u: any) => u.role === 'doctor');
+    const doctors = allUsers.filter((u: User) => u.role === 'doctor');
     const avgAppointmentsPerDoctor = doctors.length > 0 ? Math.round(appointments.length / doctors.length) : 0;
     
     const noShowAppointments = appointments.filter(apt => apt.status === 'no_show').length;
@@ -458,10 +461,10 @@ export class PrescriptionService {
   /**
    * Get doctor workload metrics for admin dashboard
    */
-  getDoctorWorkloadMetrics(authService: any) {
+  getDoctorWorkloadMetrics(authService: AuthService) {
     const appointments = this.getAppointments();
     const allUsers = authService.getAllUsers();
-    const doctors = allUsers.filter((u: any) => u.role === 'doctor');
+    const doctors = allUsers.filter((u: User) => u.role === 'doctor');
 
     const today = new Date().toISOString().split('T')[0];
     const weekAgo = new Date();
@@ -498,7 +501,7 @@ export class PrescriptionService {
   /**
    * Get complete admin metrics
    */
-  getAdminMetrics(authService: any) {
+  getAdminMetrics(authService: AuthService) {
     return {
       patientLoad: this.getPatientLoadMetrics(authService),
       doctorWorkload: this.getDoctorWorkloadMetrics(authService),

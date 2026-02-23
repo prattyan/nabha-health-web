@@ -131,8 +131,23 @@ export default function AppointmentBookingModal({
   const handleSubmit = async () => {
     if (!user || !selectedDoctor) return;
 
-    if (!appointmentData.date || !appointmentData.time || !appointmentData.reason) {
-      setError('Please fill in all required fields');
+    if (!appointmentData.date) {
+      setError('Please select an appointment date');
+      return;
+    }
+    if (!appointmentData.time) {
+      setError('Please select an appointment time');
+      return;
+    }
+    if (!appointmentData.reason.trim()) {
+      setError('Please enter the reason for the visit');
+      return;
+    }
+
+    // Validate that the appointment time is in the future if it's today
+    const appointmentDateTime = new Date(`${appointmentData.date}T${appointmentData.time}`);
+    if (appointmentDateTime < new Date()) {
+      setError('Cannot book appointments in the past');
       return;
     }
 
