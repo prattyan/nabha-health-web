@@ -179,6 +179,9 @@ export default function PrescriptionModal({
 
       // In real app, we would upload the file here
 
+      if (selectedFile) {
+        console.log('Attaching file:', selectedFile.name);
+      }
 
       prescriptionService.createPrescription(prescriptionData);
       onPrescriptionCreated();

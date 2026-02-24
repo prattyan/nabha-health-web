@@ -155,7 +155,7 @@ export default function ActivityLogsCard({ isLoading = false }: ActivityLogsCard
           <p className="text-sm text-gray-600 mb-2">Activity Summary (Last 24h)</p>
           <div className="space-y-2">
             {Object.entries(logCategories)
-              .filter(([_, count]) => count > 0)
+              .filter(([, count]) => count > 0)
               .sort((a, b) => b[1] - a[1])
               .map(([category, count]) => (
                 <div key={category} className="flex justify-between items-center">

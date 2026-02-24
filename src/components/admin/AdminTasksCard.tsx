@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Circle, AlertCircle, Flag, Plus, Trash2, Edit2, Calendar } from 'lucide-react';
+import { CheckCircle, Circle, AlertCircle, Plus, Trash2, Edit2, Calendar } from 'lucide-react';
 import { StorageService } from '../../services/storageService';
 import type { AdminTask } from '../../types/admin';
 
@@ -249,7 +249,7 @@ export default function AdminTasksCard({ adminId, isLoading = false }: AdminTask
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                 <select
                   value={newTask.category}
-                  onChange={(e) => setNewTask({ ...newTask, category: e.target.value as any })}
+                  onChange={(e) => setNewTask({ ...newTask, category: e.target.value as AdminTask['category'] })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="monitoring">Monitoring</option>
@@ -262,7 +262,7 @@ export default function AdminTasksCard({ adminId, isLoading = false }: AdminTask
                 <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                 <select
                   value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
+                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as AdminTask['priority'] })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="low">Low</option>

@@ -134,7 +134,6 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                           key={lang.code}
                           onClick={() => {
                             setLanguage(lang.code);
-
                             setShowLanguageMenu(false);
                           }}
                           className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
@@ -233,7 +232,6 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                             key={lang.code}
                             onClick={() => {
                               setLanguage(lang.code);
-
                               setShowLanguageMenu(false);
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
@@ -324,7 +322,6 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                           <motion.button
                             key={lang.code}
                             onClick={() => setLanguage(lang.code)}
-
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                               language === lang.code 
                                 ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-sm' 
@@ -377,7 +374,6 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                           <motion.button
                             key={lang.code}
                             onClick={() => setLanguage(lang.code)}
-
                             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                               language === lang.code 
                                 ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-sm' 
