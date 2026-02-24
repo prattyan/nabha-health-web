@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle, Circle, AlertCircle, Plus, Trash2, Edit2, Calendar } from 'lucide-react';
 import { StorageService } from '../../services/storageService';
 import type { AdminTask } from '../../types/admin';
