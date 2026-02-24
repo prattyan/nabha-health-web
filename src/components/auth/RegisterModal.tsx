@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -78,6 +78,18 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Ref to track the success setTimeout so we can cancel it on unmount
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel the timer if the component unmounts during the 2-second success window
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
   const { register } = useAuth();
   const { t } = useLanguage();
 
@@ -154,8 +166,10 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
 
       if (result.success) {
         setSuccess(result.message || 'Registration successful! Welcome aboard 🎉');
-        // Show success message for 2 seconds before closing
-        setTimeout(() => {
+        // Show success message for 2 seconds before closing;
+        // keep button disabled for the entire 2-second window
+        successTimerRef.current = setTimeout(() => {
+          setIsLoading(false);
           onClose();
           setFormData({
             email: '',
@@ -182,14 +196,14 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
         // Convert technical backend message to a friendly one
         const rawMessage = result.message || 'Registration failed';
         setError(getFriendlyErrorMessage(rawMessage));
+        setIsLoading(false);
       }
     } catch (err: any) {
       // Handle unexpected errors (network issues, etc.)
       const rawMessage = err?.message || 'Unexpected error';
       setError(getFriendlyErrorMessage(rawMessage));
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   if (!isOpen) return null;
@@ -421,14 +435,14 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-              <span className="mt-0.5 shrink-0">⚠️</span>
+              <span className="mt-0.5 shrink-0" aria-hidden="true">⚠️</span>
               <span>{error}</span>
             </div>
           )}
 
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
-              <span className="mt-0.5 shrink-0">✅</span>
+              <span className="mt-0.5 shrink-0" aria-hidden="true">✅</span>
               <span>{success}</span>
             </div>
           )}
