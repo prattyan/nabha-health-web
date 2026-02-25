@@ -20,11 +20,9 @@ const CATEGORIES = ['Analgesic', 'Antibiotic', 'NSAID', 'Supplement', 'Antidiabe
 
 export default function PharmacyStockCard({ isLoading = false }: PharmacyStockCardProps) {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'view' | 'add-manual' | 'upload-csv'>('view');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const storage = StorageService.getInstance();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -37,6 +35,7 @@ export default function PharmacyStockCard({ isLoading = false }: PharmacyStockCa
   // Load data from localStorage on mount
   useEffect(() => {
     const loadData = () => {
+      const storage = StorageService.getInstance();
       const stored = storage.getItem(STORAGE_KEY);
       if (stored) {
         try {
@@ -54,6 +53,7 @@ export default function PharmacyStockCard({ isLoading = false }: PharmacyStockCa
   // Save data to localStorage
   const saveData = (data: Medicine[]) => {
     try {
+      const storage = StorageService.getInstance();
       storage.setItem(STORAGE_KEY, JSON.stringify(data));
       setMedicines(data);
     } catch (e) {
