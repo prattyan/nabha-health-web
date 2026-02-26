@@ -27,6 +27,7 @@ export class SyncService {
   private api = ApiClient.getInstance();
   private timer: number | null = null;
   private onlineHandler: (() => void) | null = null;
+  private isProcessing = false;
 
   static getInstance(): SyncService {
     if (!SyncService.instance) SyncService.instance = new SyncService();
@@ -76,11 +77,14 @@ export class SyncService {
   start() {
     if (this.timer !== null) return;
     const tick = () => {
+      // Opt-out of sync if page is hidden to save bandwidth/battery
+      if (document.hidden) return;
       this.process().catch(() => undefined);
     };
     this.onlineHandler = tick;
     window.addEventListener('online', tick);
-    this.timer = window.setInterval(tick, 15000);
+    // Increase sync interval to 30s to reduce network usage
+    this.timer = window.setInterval(tick, 30000);
     tick();
   }
 
@@ -96,40 +100,55 @@ export class SyncService {
   }
 
   async process(): Promise<void> {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || this.isProcessing) return;
     // ApiClient uses StorageService which is now sync (backed by memory), so this works
     if (!this.api.getAccessToken()) return;
 
-    await this.pushQueue();
-    await this.pullDeltas();
+    this.isProcessing = true;
+    try {
+      await this.pushQueue();
+      await this.pullDeltas();
+    } catch (error) {
+      console.error('Sync process failed:', error);
+    } finally {
+      this.isProcessing = false;
+    }
   }
 
   private async pushQueue(): Promise<void> {
-    const queue = this.readQueue();
-    if (!queue.length) return;
+    // Take a snapshot of items to send
+    const queueSnapshot = this.readQueue();
+    if (!queueSnapshot.length) return;
 
     const deviceId = this.getDeviceId();
     try {
-        const res = await this.api.post<{
+      const res = await this.api.post<{
         applied: { opId: string; entityId: string; newVersion: number }[];
         conflicts: { opId: string; entityId: string; serverVersion: number; reason: string; serverData?: unknown }[];
-        }>(
+      }>(
         '/sync/push',
-        { deviceId, ops: queue }
-        );
+        { deviceId, ops: queueSnapshot }
+      );
 
-        const appliedIds = new Set(res.applied.map((a) => a.opId));
-        const conflictIds = new Set(res.conflicts.map((c) => c.opId));
-        const remaining = queue.filter((q) => !(appliedIds.has(q.opId) || conflictIds.has(q.opId)));
-        this.writeQueue(remaining);
+      const appliedIds = new Set(res.applied.map((a) => a.opId));
+      const conflictIds = new Set(res.conflicts.map((c) => c.opId));
+      
+      // CRITICAL: Re-read queue to ensure we don't drop items added during the request
+      const currentQueue = this.readQueue();
+      
+      // Keep items that were NOT processed in this batch
+      // (This handles items added during sync AND items that failed/weren't processed)
+      const remaining = currentQueue.filter((q) => !(appliedIds.has(q.opId) || conflictIds.has(q.opId)));
+      
+      this.writeQueue(remaining);
 
-        if (res.conflicts.length) {
-            const existingRaw = this.storage.getItem(CONFLICTS_KEY);
-            const existing = existingRaw ? (JSON.parse(existingRaw) as unknown[]) : [];
-            this.storage.setItem(CONFLICTS_KEY, JSON.stringify([...existing, ...res.conflicts]));
-        }
+      if (res.conflicts.length) {
+        const existingRaw = this.storage.getItem(CONFLICTS_KEY);
+        const existing = existingRaw ? (JSON.parse(existingRaw) as unknown[]) : [];
+        this.storage.setItem(CONFLICTS_KEY, JSON.stringify([...existing, ...res.conflicts]));
+      }
     } catch (e) {
-        console.error("Push queue failed", e);
+      console.error("Push queue failed", e);
     }
   }
 

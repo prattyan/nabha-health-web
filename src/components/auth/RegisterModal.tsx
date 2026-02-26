@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -31,18 +31,77 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Ref to track the success setTimeout so we can cancel it on unmount
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel the timer if the component unmounts during the 2-second success window
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
   const { register } = useAuth();
   const { t } = useLanguage();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error as user starts correcting their input
+    if (error) setError('');
+  };
+
+  // Client-side validation with friendly messages before hitting the server
+  const validateForm = (): string | null => {
+    if (!formData.firstName.trim()) {
+      return 'Please enter your first name.';
+    }
+    if (!formData.lastName.trim()) {
+      return 'Please enter your last name.';
+    }
+    if (!formData.email.trim()) {
+      return 'Please enter your email address.';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      return 'Please enter a valid email address (e.g. name@example.com).';
+    }
+    if (!formData.phone.trim()) {
+      return 'Please enter your phone number.';
+    }
+    const phoneRegex = /^[+]?[\d\s\-()]{7,15}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      return 'Please enter a valid phone number (e.g. +91 98765 43210).';
+    }
+    if (!formData.password) {
+      return 'Please enter a password.';
+    }
+    if (formData.password.length < 8) {
+      return 'Your password must be at least 8 characters long.';
+    }
+    if (!formData.confirmPassword) {
+      return 'Please confirm your password.';
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return 'Your passwords do not match. Please make sure both passwords are the same.';
+    }
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    // Run client-side validation first
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsLoading(true);
 
     const result = await register({
@@ -74,8 +133,6 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
     } else {
       setError(result.message);
     }
-    
-    setIsLoading(false);
   };
 
   if (!isOpen) return null;
@@ -279,6 +336,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+              <p className="text-xs text-gray-400 mt-1">Must be at least 8 characters long.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -305,14 +363,16 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+              <span className="mt-0.5 shrink-0" aria-hidden="true">⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm">
-              {success}
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+              <span className="mt-0.5 shrink-0" aria-hidden="true">✅</span>
+              <span>{success}</span>
             </div>
           )}
 
