@@ -129,7 +129,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {languages.map((lang, index) => (
+                        {languages.map((lang: { code: Language; name: string; nativeName: string }, index: number) => (
                         <motion.button
                           key={lang.code}
                           onClick={() => {
@@ -318,7 +318,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                     >
                       <p className="text-sm font-medium text-slate-700 mb-2">{t('header.language')}</p>
                       <div className="flex space-x-2">
-                        {languages.map((lang) => (
+                        {languages.map((lang: { code: Language; name: string; nativeName: string }) => (
                           <motion.button
                             key={lang.code}
                             onClick={() => setLanguage(lang.code)}
@@ -370,7 +370,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                     >
                       <p className="text-sm font-medium text-slate-700 mb-2">{t('header.language')}</p>
                       <div className="flex space-x-2">
-                        {languages.map((lang) => (
+                        {languages.map((lang: { code: Language; name: string; nativeName: string }) => (
                           <motion.button
                             key={lang.code}
                             onClick={() => setLanguage(lang.code)}

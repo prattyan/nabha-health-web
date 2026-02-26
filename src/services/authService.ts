@@ -17,6 +17,8 @@ interface SessionData {
 export class AuthService {
   private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
   private api = ApiClient.getInstance();
+  private lastDoctorRefreshTime = 0;
+  private readonly DOCTOR_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
   private mapServerRole(role: string): User['role'] {
     switch (role) {
@@ -61,6 +63,13 @@ export class AuthService {
   private async refreshDoctorsFromServer(): Promise<void> {
     if (!navigator.onLine) return;
     if (!this.api.getAccessToken()) return;
+    
+    // Throttle refresh requests to avoid spamming the server
+    if (Date.now() - this.lastDoctorRefreshTime < this.DOCTOR_REFRESH_INTERVAL) {
+      return;
+    }
+    
+    this.lastDoctorRefreshTime = Date.now();
     const res = await this.api.get<{ doctors: Array<{ id: string; firstName: string; lastName: string; specialization?: string; village?: string }> }>('/users/doctors');
     const doctors: User[] = res.doctors.map((d) => ({
       id: d.id,
@@ -477,7 +486,11 @@ export class AuthService {
         // Auto-refresh session if active
         const timeRemaining = parsed.expiry - Date.now();
         if (timeRemaining < this.SESSION_DURATION / 2) {
-            this.refreshSession(parsed.user);
+            // Fire and forget, but handled safely
+            this.refreshSession(parsed.user).catch(() => {
+              // If refresh fails completely (e.g. invalid token), logout might be needed
+              // But we let the async function handle the logout if needed
+            });
         }
 
         return parsed.user;
@@ -491,12 +504,23 @@ export class AuthService {
     }
   }
 
-  private refreshSession(user: User): void {
+  private async refreshSession(user: User): Promise<void> {
+    try {
+      if (!navigator.onLine) return;
+      
+      // Verify with server before extending local session
+      await this.api.refreshTokens();
+      
       const sessionData: SessionData = {
           user,
           expiry: Date.now() + this.SESSION_DURATION
       };
       this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+    } catch (error) {
+      console.warn('Session auto-refresh failed', error);
+      // Optional: if error is 401/403, could force logout here
+      // this.logout();
+    }
   }
 
   isAuthenticated(): boolean {

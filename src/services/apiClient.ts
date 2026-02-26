@@ -71,7 +71,7 @@ export class ApiClient {
     return json as T;
   }
 
-  private async refreshTokens(): Promise<void> {
+  async refreshTokens(): Promise<void> {
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) throw new Error('Missing refresh token');
     const res = await this.rawRequest<{ accessToken: string; refreshToken: string }>('POST', '/auth/refresh', { refreshToken }, null);

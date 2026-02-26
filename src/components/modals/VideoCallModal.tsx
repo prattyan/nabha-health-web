@@ -20,9 +20,16 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
     
     // Connection handling with retry logic
     let reconnectAttempts = 0;
-    const maxReconnects = 3;
+    const maxReconnects = 5;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     
     const connectSignaling = () => {
+      // Clean up previous socket if exists
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      
       wsRef.current = new WebSocket('ws://localhost:8080');
       
       wsRef.current.onopen = async () => {
@@ -51,17 +58,27 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
 
       wsRef.current.onclose = () => {
           console.log('Signaling disconnected');
+          
           if (reconnectAttempts < maxReconnects && isOpen) {
               reconnectAttempts++;
-              setTimeout(connectSignaling, 2000 * reconnectAttempts);
+              // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s... (+ random 0-500ms)
+              const baseDelay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+              const jitter = Math.random() * 500;
+              const delay = baseDelay + jitter;
+              
+              console.log(`Reconnecting attempt ${reconnectAttempts} in ${Math.round(delay)}ms`);
+              reconnectTimeout = setTimeout(connectSignaling, delay);
           } else if (isOpen) {
                setError('Lost connection to signaling server.');
           }
       };
 
       wsRef.current.onerror = (err) => {
-          console.error("WebSocket error:", err);
-          // onclose will be called
+          // Check if we haven't already closed/errored
+          if (wsRef.current?.readyState !== WebSocket.CLOSED) {
+             console.error("WebSocket error:", err);
+          }
+          // onclose will be called automatically
       };
 
       wsRef.current.onmessage = async (event) => {
@@ -121,6 +138,11 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
       .catch(() => setError('Could not access camera/microphone'));
 
     return () => {
+      // Clear reconnection timer
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -131,6 +153,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
         wsRef.current.close();
       }
     };
+
   }, [isOpen, roomId]);
 
   return isOpen ? (
