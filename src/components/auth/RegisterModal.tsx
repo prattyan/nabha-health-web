@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { RegisterData } from '../../types/auth';
 
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToLogin: () => void;
-  customRegister?: (data: RegisterData) => Promise<{ success: boolean; message?: string }>;
 }
 
-export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, customRegister }: RegisterModalProps) {
+export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModalProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -47,20 +45,13 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
     setSuccess('');
     setIsLoading(true);
 
-    const dataToSubmit = {
+    const result = await register({
       ...formData,
       experience: formData.experience ? parseInt(formData.experience) : undefined,
-    };
-
-    let result;
-    if (customRegister) {
-       result = await customRegister(dataToSubmit);
-    } else {
-       result = await register(dataToSubmit);
-    }
+    });
     
     if (result.success) {
-      setSuccess(result.message || 'Registration successful!');
+      setSuccess(result.message);
       // Show success message for 2 seconds before closing
       setTimeout(() => {
         onClose();
@@ -79,14 +70,9 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
           experience: '',
         });
         setSuccess('');
-
-        // Only switch to login if we are using the default flow (not custom register)
-        if (!customRegister && onSwitchToLogin) {
-             onSwitchToLogin();
-        }
       }, 2000);
     } else {
-      setError(result.message || 'Registration failed');
+      setError(result.message);
     }
     
     setIsLoading(false);
