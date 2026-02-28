@@ -3,6 +3,7 @@ import { ServerUser } from '../types/serverTypes';
 import { StorageService } from './storageService';
 import type { DoctorMetrics, SystemMetrics } from '../types/admin';
 import { ApiClient } from './apiClient';
+import { clearAllFcmTokens } from './notificationService';
 
 const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
@@ -454,6 +455,7 @@ export class AuthService {
     }
     this.api.clearTokens();
     this.storageService.removeItem(CURRENT_USER_KEY);
+    clearAllFcmTokens();
   }
 
   getCurrentUser(): User | null {

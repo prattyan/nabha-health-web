@@ -251,3 +251,14 @@ export const subscribeToForegroundMessages = (handler: (payload: MessagePayload)
   foregroundSubscription = onMessage(messagingInstance, handler);
   return foregroundSubscription;
 };
+
+export const clearAllFcmTokens = () => {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('fcmToken:')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+};

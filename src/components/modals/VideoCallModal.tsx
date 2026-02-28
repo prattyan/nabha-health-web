@@ -1,4 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import type { Socket } from 'socket.io-client';
+import { createSignalingSocket } from '../../services/socketService';
 
 interface VideoCallModalProps {
   isOpen: boolean;
@@ -11,149 +13,169 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [remoteConnected, setRemoteConnected] = useState(false);
+  
+  // Refs for stable access in callbacks
+  const isInitiatorRef = useRef(false);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const roomReadyRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) return;
-    
-    // Connection handling with retry logic
-    let reconnectAttempts = 0;
-    const maxReconnects = 5;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    
-    const connectSignaling = () => {
-      // Clean up previous socket if exists
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      
-      wsRef.current = new WebSocket('ws://localhost:8080');
-      
-      wsRef.current.onopen = async () => {
-         console.log('Connected to signaling server');
-         reconnectAttempts = 0; // Reset attempts on success
-         
-         // If first to join (or just ready), initiate offer logic
-          if (peerConnectionRef.current && peerConnectionRef.current.signalingState === 'stable') {
-              // Wait a sec for peer if needed, but only if we are the "initiator" conceptually
-              // For simplicity, we create offer if we don't receive one shortly
-              setTimeout(async () => {
-                  try {
-                    if (peerConnectionRef.current?.signalingState === 'stable') {
-                      const offer = await peerConnectionRef.current.createOffer();
-                      await peerConnectionRef.current.setLocalDescription(offer);
-                      if (wsRef.current?.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(JSON.stringify({ roomId, type: 'offer', payload: offer }));
-                      }
-                    }
-                  } catch (e) {
-                      console.error("Error creating offer:", e);
-                  }
-              }, 1500); 
-          }
-      };
 
-      wsRef.current.onclose = () => {
-          console.log('Signaling disconnected');
-          
-          if (reconnectAttempts < maxReconnects && isOpen) {
-              reconnectAttempts++;
-              // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s... (+ random 0-500ms)
-              const baseDelay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
-              const jitter = Math.random() * 500;
-              const delay = baseDelay + jitter;
-              
-              console.log(`Reconnecting attempt ${reconnectAttempts} in ${Math.round(delay)}ms`);
-              reconnectTimeout = setTimeout(connectSignaling, delay);
-          } else if (isOpen) {
-               setError('Lost connection to signaling server.');
-          }
-      };
+    let socket: Socket | undefined;
+    let pc: RTCPeerConnection | undefined;
 
-      wsRef.current.onerror = (err) => {
-          // Check if we haven't already closed/errored
-          if (wsRef.current?.readyState !== WebSocket.CLOSED) {
-             console.error("WebSocket error:", err);
-          }
-          // onclose will be called automatically
-      };
-
-      wsRef.current.onmessage = async (event) => {
-      const { type, payload } = JSON.parse(event.data);
-      if (!peerConnectionRef.current) return;
+    const startCallSequence = async () => {
       try {
-        if (type === 'offer') {
-          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-          const answer = await peerConnectionRef.current.createAnswer();
-          await peerConnectionRef.current.setLocalDescription(answer);
-          wsRef.current?.send(JSON.stringify({ roomId, type: 'answer', payload: answer }));
-        } else if (type === 'answer') {
-          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-        } else if (type === 'ice') {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload));
-        }
-      } catch (e) {
-          console.error("Error handling signaling message:", e);
-      }
-    };
-    }
-
-    connectSignaling();
-
-    // Get local media with low-bandwidth constraints
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 640, max: 1280 },
-        height: { ideal: 480, max: 720 },
-        frameRate: { ideal: 15, max: 24 } // Reduced frame rate for better stability on low bandwidth
-      },
-      audio: true
-    })
-      .then(stream => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-        // Setup peer connection
-        const pc = new RTCPeerConnection();
+
+        pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        });
         peerConnectionRef.current = pc;
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+        // Add local tracks to peer connection
+        stream.getTracks().forEach(track => pc?.addTrack(track, stream));
+
+        // Handle remote stream
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
             setRemoteConnected(true);
           }
         };
+
+        // Handle ICE candidates
         pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            wsRef.current?.send(JSON.stringify({ roomId, type: 'ice', payload: event.candidate }));
+          if (event.candidate && socket) {
+            socket.emit('ice-candidate', { roomId, candidate: event.candidate });
           }
         };
-        // If first to join, create offer
-        // moved to onopen
-      })
-      .catch(() => setError('Could not access camera/microphone'));
 
-    return () => {
-      // Clear reconnection timer
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
+        socket = createSignalingSocket();
+        socketRef.current = socket;
+
+        // --- Socket Event Handlers ---
+
+        socket.on('connect', () => {
+          socket?.emit('join-room', { roomId });
+        });
+
+        socket.on('room-joined', ({ isInitiator: initiator }) => {
+          isInitiatorRef.current = initiator;
+        });
+
+        socket.on('room-ready', async () => {
+          roomReadyRef.current = true;
+          
+          if (isInitiatorRef.current && pc) {
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              socket?.emit('offer', { roomId, offer });
+            } catch (err) {
+              console.error('Error creating offer:', err);
+            }
+          }
+        });
+
+        socket.on('offer', async ({ offer }) => {
+          if (!pc) return;
+          
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket?.emit('answer', { roomId, answer });
+
+            // Process any queued candidates
+            while (pendingCandidatesRef.current.length > 0) {
+              const candidate = pendingCandidatesRef.current.shift();
+              if (candidate) {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              }
+            }
+          } catch (err) {
+            console.error('Error handling offer:', err);
+          }
+        });
+
+        socket.on('answer', async ({ answer }) => {
+          if (!pc) return;
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (err) {
+            console.error('Error handling answer:', err);
+          }
+        });
+
+        socket.on('ice-candidate', async ({ candidate }) => {
+          if (!pc) return;
+          try {
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+              // Queue candidate if remote description isn't set yet
+              pendingCandidatesRef.current.push(candidate);
+            }
+          } catch (err) {
+            console.error('Error adding ice candidate:', err);
+          }
+        });
+
+        socket.on('peer-disconnected', () => {
+          setRemoteConnected(false);
+        });
+
+        socket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err);
+          setError('Failed to connect to signaling server. Please try again later.');
+        });
+
+        pc.oniceconnectionstatechange = () => {
+          if (pc?.iceConnectionState === 'failed' || pc?.iceConnectionState === 'disconnected') {
+            setError('Connection lost. Please try reconnecting.');
+          }
+        };
+
+        // Finally, connect the socket
+        socket.connect();
+
+      } catch (err) {
+        console.error('Setup error:', err);
+        setError('Could not access camera/microphone');
       }
-      
+    };
+
+    void startCallSequence();
+
+    // Cleanup function
+    return () => {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
-      if (wsRef.current) {
-        wsRef.current.close();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
+      pendingCandidatesRef.current = [];
+      roomReadyRef.current = false;
+      isInitiatorRef.current = false;
     };
-
   }, [isOpen, roomId]);
 
   return isOpen ? (
@@ -163,7 +185,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
         {error && <div className="text-red-600 mb-2">{error}</div>}
         <div className="flex space-x-4 mb-4">
           <div>
-            <video ref={localVideoRef} autoPlay playsInline muted className="w-64 h-48 bg-black rounded-lg" />
+            <video ref={localVideoRef} autoPlay playsInline muted className="w-64 h-48 bg-black rounded-lg transform -scale-x-100" />
             <div className="text-center text-xs mt-1">You</div>
           </div>
           <div>
@@ -183,7 +205,7 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
             End Call
           </button>
         </div>
-        <div className="mt-4 text-xs text-gray-500">* Demo only: Add signaling for real calls</div>
+        <div className="mt-4 text-xs text-gray-500">Signaling connected via Socket.IO</div>
       </div>
     </div>
   ) : null;

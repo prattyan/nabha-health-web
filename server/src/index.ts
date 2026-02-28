@@ -3,12 +3,15 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
+import http from 'http';
 import { env, corsOrigins } from './env.js';
 import { logger } from './logger.js';
 import { HttpError } from './http/errors.js';
 import { apiRouter } from './routes/index.js';
+import { setupSignaling } from './signaling.js';
 
 const app = express();
+const server = http.createServer(app);
 
 app.use(pinoHttp({ logger }));
 app.use(helmet());
@@ -36,6 +39,8 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(env.PORT, () => {
-  logger.info({ port: env.PORT, env: env.NODE_ENV }, 'API listening');
+setupSignaling(server);
+
+server.listen(env.PORT, () => {
+  logger.info({ port: env.PORT, env: env.NODE_ENV }, 'API and Signaling Server listening');
 });
