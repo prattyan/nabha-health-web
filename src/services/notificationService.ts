@@ -2,6 +2,7 @@ import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   getMessaging,
   getToken,
+  deleteToken,
   onMessage,
   type Messaging,
   type MessagePayload
@@ -61,6 +62,7 @@ export const initializeFirebaseMessaging = () => {
 /**
  * Registers the Firebase Messaging service worker.
  * Checks if the browser supports service workers before attempting registration.
+ * Allows passing dynamic Firebase config to prevent accidental exposure of real keys.
  * @returns A promise that resolves to the ServiceWorkerRegistration, or null if unsupported.
  */
 export const registerNotificationServiceWorker = async () => {
@@ -68,7 +70,12 @@ export const registerNotificationServiceWorker = async () => {
     return null;
   }
 
-  return navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  const params = new URLSearchParams();
+  Object.entries(firebaseConfig).forEach(([key, value]) => {
+    if (value) params.append(key, value as string);
+  });
+
+  return navigator.serviceWorker.register(`/firebase-messaging-sw.js?${params.toString()}`);
 };
 
 /**
@@ -113,9 +120,35 @@ export const enablePushNotifications = async (userId?: string) => {
 
   if (token) {
     localStorage.setItem(getTokenStorageKey(userId), token);
+    
+    // Subscribe to foreground messages when push notifications are enabled
+    subscribeToForegroundMessages();
   }
 
   return { permission, token };
+};
+
+/**
+ * Disables push notifications for the user by deleting the FCM token
+ * and removing it from local storage.
+ * @param userId - The ID of the user (optional).
+ */
+export const disablePushNotifications = async (userId?: string) => {
+  const messagingInstance = initializeFirebaseMessaging();
+  if (messagingInstance) {
+    try {
+      await deleteToken(messagingInstance);
+    } catch (error) {
+      console.error('Failed to delete FCM token:', error);
+    }
+  }
+  
+  localStorage.removeItem(getTokenStorageKey(userId));
+  
+  if (foregroundSubscription) {
+    foregroundSubscription();
+    foregroundSubscription = null;
+  }
 };
 
 export type NotificationType =
@@ -179,16 +212,42 @@ export const showLocalNotification = async (
 };
 
 /**
- * Subscribes to foreground message events from Firebase Cloud Messaging.
- * @param handler - A callback function to handle the incoming message payload.
- * @returns A unsubscribe function, or undefined if messaging is not initialized.
+ * Handles incoming foreground notification messages.
+ * Displays a local browser notification if permission is granted.
+ * @param payload - The notification payload containing title, body, and icon.
  */
-export const subscribeToForegroundMessages = (handler: (payload: MessagePayload) => void) => {
+const handleForegroundMessage = (payload: MessagePayload) => {
+  if (Notification.permission !== 'granted') return;
+
+  const title = payload.notification?.title ?? 'New Notification';
+  const options = {
+    body: payload.notification?.body ?? 'You have a new update.',
+    icon: payload.notification?.icon
+  };
+
+  new Notification(title, options);
+};
+
+let foregroundSubscription: (() => void) | null = null;
+
+/**
+ * Subscribes to foreground message events from Firebase Cloud Messaging.
+ * Uses a default handler to display local notifications if not provided.
+ * Ensures only one active subscription exists.
+ * @param handler - A callback function to handle the incoming message payload.
+ * @returns An unsubscribe function, or undefined if messaging is not initialized.
+ */
+export const subscribeToForegroundMessages = (handler: (payload: MessagePayload) => void = handleForegroundMessage) => {
   const messagingInstance = initializeFirebaseMessaging();
 
   if (!messagingInstance) {
     return () => undefined;
   }
 
-  return onMessage(messagingInstance, handler);
+  if (foregroundSubscription) {
+    foregroundSubscription();
+  }
+
+  foregroundSubscription = onMessage(messagingInstance, handler);
+  return foregroundSubscription;
 };

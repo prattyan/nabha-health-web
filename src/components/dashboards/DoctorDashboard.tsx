@@ -369,23 +369,25 @@ export default function DoctorDashboard() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Notifications</h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={handleDoctorAvailabilityNotification}
-                        className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
-                      >
-                        Send Doctor Availability
-                      </button>
-                      <button
-                        onClick={handleUrgentTriageNotification}
-                        className="w-full bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
-                      >
-                        Send Urgent Triage Alert
-                      </button>
+                  {import.meta.env.DEV && (
+                    <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Test Notifications</h4>
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleDoctorAvailabilityNotification}
+                          className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                        >
+                          Send Doctor Availability
+                        </button>
+                        <button
+                          onClick={handleUrgentTriageNotification}
+                          className="w-full bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                        >
+                          Send Urgent Triage Alert
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
               </>
