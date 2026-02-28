@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthService } from '../../services/authService';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -27,12 +27,7 @@ export default function AdminDashboard() {
   const [doctorMetrics, setDoctorMetrics] = useState<DoctorMetrics | null>(null);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
 
-  // Load metrics
-  useEffect(() => {
-    loadMetrics();
-  }, []);
-
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     try {
       setIsLoading(true);
 
@@ -54,7 +49,12 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [authService, prescriptionService]);
+
+  // Load metrics
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
 
   const handleLogout = () => {
     logout();
@@ -374,7 +374,7 @@ export default function AdminDashboard() {
 
         {/* Data Management Tab */}
         {activeTab === 'data' && (
-          <DataManagementSection isLoading={isLoading} />
+          <DataManagementSection />
         )}
 
         {/* Activity Logs Tab */}

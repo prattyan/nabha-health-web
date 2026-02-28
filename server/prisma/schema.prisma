@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  HEALTH_WORKER
+  PHARMACY
+  ADMIN
+}
+
+enum AppointmentStatus {
+  AVAILABLE
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InventoryTransactionType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  SYNC_PUSH
+  SYNC_PULL
+}
+
+model User {
+  id   String   @id @default(cuid())
+  role UserRole
+
+  firstName String
+  lastName  String
+
+  emailEnc  String?
+  emailHash String? @unique
+
+  phoneEnc  String?
+  phoneHash String? @unique
+
+  abhaIdEnc  String?
+  abhaIdHash String? @unique
+
+  passwordHash String
+
+  village      String?
+  workLocation String?
+
+  specialization String?
+  licenseNumber  String?
+  experience     Int?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
+
+  appointmentsAsPatient      Appointment[] @relation("AppointmentPatient")
+  appointmentsAsDoctor       Appointment[] @relation("AppointmentDoctor")
+  appointmentsAsHealthWorker Appointment[] @relation("AppointmentHealthWorker")
+
+  ehrCreated EhrRecord[] @relation("EhrCreatedBy")
+  ehrPatient EhrRecord[] @relation("EhrPatient")
+
+  prescriptionsAsPatient Prescription[] @relation("RxPatient")
+  prescriptionsAsDoctor  Prescription[] @relation("RxDoctor")
+
+  pharmacyItems         PharmacyInventoryItem[]
+  inventoryTransactions InventoryTransaction[]  @relation("InventoryActor")
+
+  triageLogsCreated   AiTriageLog[] @relation("TriageCreatedBy")
+  triageLogsAsPatient AiTriageLog[] @relation("TriagePatient")
+
+  followUpsAsPatient FollowUpVisit[] @relation("FollowUpPatient")
+  followUpsAsWorker  FollowUpVisit[] @relation("FollowUpWorker")
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]     @relation("AuditActor")
+  syncHistories SyncHistory[]
+
+  @@index([role])
+  @@index([village])
+}
+
+model Appointment {
+  id     String            @id @default(cuid())
+  status AppointmentStatus @default(SCHEDULED)
+
+  patientId      String
+  doctorId       String
+  healthWorkerId String?
+
+  scheduledAt     DateTime
+  durationMinutes Int
+  type            String
+  priority        String
+  reasonEnc       String?
+  notesEnc        String?
+  village         String?
+  specialization  String?
+  meetingLink     String?
+  symptoms        String[]
+  reminderSent    Boolean  @default(false)
+  review          Int?
+
+  prescription Prescription?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
+
+  patient      User  @relation("AppointmentPatient", fields: [patientId], references: [id])
+  doctor       User  @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  healthWorker User? @relation("AppointmentHealthWorker", fields: [healthWorkerId], references: [id])
+
+  @@index([patientId, scheduledAt])
+  @@index([doctorId, scheduledAt])
+  @@index([healthWorkerId, scheduledAt])
+  @@index([village])
+}
+
+model EhrRecord {
+  id String @id @default(cuid())
+
+  patientId   String
+  createdById String
+
+  encounterAt    DateTime
+  recordType     String
+  title          String
+  descriptionEnc String
+
+  diagnosisEnc     String?
+  notesEnc         String?
+  vitalsJson       Json?
+  attachmentsJson  Json?
+  testResultsJson  Json?
+  followUpRequired Boolean   @default(false)
+  followUpAt       DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
+
+  patient   User @relation("EhrPatient", fields: [patientId], references: [id])
+  createdBy User @relation("EhrCreatedBy", fields: [createdById], references: [id])
+
+  @@index([patientId, encounterAt])
+  @@index([createdById, encounterAt])
+}
+
+model Prescription {
+  id     String             @id @default(cuid())
+  status PrescriptionStatus @default(ACTIVE)
+
+  appointmentId String? @unique
+  patientId     String
+  doctorId      String
+
+  issuedAt        DateTime
+  followUpAt      DateTime?
+  diagnosisEnc    String?
+  symptomsEnc     String?
+  notesEnc        String?
+  vitalSignsJson  Json?
+  attachmentsJson Json?
+
+  items PrescriptionItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  patient     User         @relation("RxPatient", fields: [patientId], references: [id])
+  doctor      User         @relation("RxDoctor", fields: [doctorId], references: [id])
+
+  @@index([patientId, issuedAt])
+  @@index([doctorId, issuedAt])
+}
+
+model PrescriptionItem {
+  id             String   @id @default(cuid())
+  prescriptionId String
+  medicineName   String
+  dosage         String?
+  frequency      String?
+  duration       String?
+  instructions   String?
+  quantity       Int?
+  timesToTake    String[]
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+
+  @@index([prescriptionId])
+}
+
+model PharmacyInventoryItem {
+  id         String @id @default(cuid())
+  pharmacyId String
+
+  sku           String
+  name          String
+  quantity      Int
+  unit          String
+  minStockLevel Int
+  batchNumber   String?
+  expiryDate    DateTime?
+
+  lastUpdatedAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  version       Int       @default(1)
+
+  pharmacy     User                   @relation(fields: [pharmacyId], references: [id])
+  transactions InventoryTransaction[]
+
+  @@unique([pharmacyId, sku])
+  @@index([sku])
+  @@index([pharmacyId])
+}
+
+model InventoryTransaction {
+  id            String                   @id @default(cuid())
+  itemId        String
+  type          InventoryTransactionType
+  quantity      Int
+  reason        String?
+  performedById String
+  timestamp     DateTime                 @default(now())
+
+  item        PharmacyInventoryItem @relation(fields: [itemId], references: [id])
+  performedBy User                  @relation("InventoryActor", fields: [performedById], references: [id])
+
+  @@index([itemId, timestamp])
+  @@index([performedById, timestamp])
+}
+
+model AiTriageLog {
+  id          String  @id @default(cuid())
+  patientId   String?
+  createdById String?
+
+  symptoms   String[]
+  resultJson Json
+  latencyMs  Int?
+  source     String?
+
+  createdAt DateTime @default(now())
+
+  patient   User? @relation("TriagePatient", fields: [patientId], references: [id])
+  createdBy User? @relation("TriageCreatedBy", fields: [createdById], references: [id])
+
+  @@index([patientId, createdAt])
+}
+
+model FollowUpVisit {
+  id          String   @id @default(cuid())
+  patientId   String
+  workerId    String
+  scheduledAt DateTime
+  status      String
+  village     String?
+  notesEnc    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
+
+  patient User @relation("FollowUpPatient", fields: [patientId], references: [id])
+  worker  User @relation("FollowUpWorker", fields: [workerId], references: [id])
+
+  @@index([patientId, scheduledAt])
+  @@index([workerId, scheduledAt])
+  @@index([village])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  beforeJson Json?
+  afterJson  Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+}
+
+model SyncHistory {
+  id           String    @id @default(cuid())
+  userId       String
+  deviceId     String
+  lastPulledAt DateTime?
+  lastPushedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceId])
+  @@index([deviceId])
+}

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, Video, Clock, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AuthService } from '../../services/authService';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -68,6 +68,13 @@ export default function DoctorDashboard() {
       if (user.role === 'doctor') {
         setAvailableDates(authService.getDoctorAvailableDates(user.id));
       }
+
+      // Auto-refresh appointment status every 5 seconds (Simulated WebSocket)
+      const intervalId = setInterval(() => {
+        loadDoctorData();
+      }, 5000);
+
+      return () => clearInterval(intervalId);
     }
   }, [user, loadDoctorData, authService]);
 
@@ -279,7 +286,27 @@ export default function DoctorDashboard() {
           <div className="p-6">
             {activeTab === 'inventory' && <InventoryPanel />}
             {activeTab === 'overview' && (
-              <div className="grid lg:grid-cols-2 gap-8">
+              <>
+                {/* Urgent Triage Notifications */}
+                {(() => {
+                  const urgentCount = appointments.filter(a => a.priority === 'high' && a.status === 'scheduled').length;
+                  if (urgentCount > 0) {
+                    return (
+                      <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                        <div>
+                          <h4 className="text-sm font-bold text-red-800">Urgent Attention Required</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            You have {urgentCount} high-priority patient{urgentCount > 1 ? 's' : ''} waiting for triage.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                <div className="grid lg:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Schedule</h3>
                   <div className="space-y-3">
@@ -361,6 +388,7 @@ export default function DoctorDashboard() {
                   </div>
                 </div>
               </div>
+              </>
             )}
 
             {activeTab === 'appointments' && (
@@ -646,7 +674,14 @@ export default function DoctorDashboard() {
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mr-2"
                 onClick={() => {
                   if (user && user.role === 'doctor') {
-                    authService.setDoctorAvailableDates(user.id, availableDates);
+                    try {
+                      authService.setDoctorAvailableDates(user.id, availableDates);
+                      // Use window.alert for immediate feedback as requested
+                      window.alert('Availability schedule saved successfully!');
+                    } catch (error) {
+                      console.error('Save error:', error);
+                      window.alert('Failed to save schedule.');
+                    }
                   }
                   setShowAvailabilityCalendar(false);
                 }}

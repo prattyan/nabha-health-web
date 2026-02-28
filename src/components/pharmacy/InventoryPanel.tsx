@@ -25,15 +25,19 @@ export default function InventoryPanel() {
     loadInventory();
   }, [loadInventory]);
 
-  // Periodic Auto-Sync Trigger (Simulated)
+  // Periodic Auto-Sync Trigger
   useEffect(() => {
+    // Initial sync check
+    inventoryService.autoSync();
+
     const interval = setInterval(() => {
-       // Ideally this would check a 'lastModified' from server
-       // For now updates local state if other tabs changed it
-       loadInventory();
+       // Check for auto-sync every 30 seconds (throttled internally by service)
+       inventoryService.autoSync().then(() => {
+         loadInventory();
+       });
     }, 30000); 
     return () => clearInterval(interval);
-  }, [loadInventory]);
+  }, [loadInventory, inventoryService]);
 
   const handleSync = async () => {
       setIsLoading(true);
