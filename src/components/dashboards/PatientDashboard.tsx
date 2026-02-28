@@ -3,6 +3,7 @@ import { Calendar, Video, Pill, Heart, Clock, User, Brain } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { PrescriptionService } from '../../services/prescriptionService';
+import { showLocalNotification } from '../../services/notificationService';
 import VideoCallModal from '../modals/VideoCallModal';
 import { Prescription, Appointment } from '../../types/prescription';
 import PrescriptionViewModal from '../modals/PrescriptionViewModal';
@@ -109,6 +110,24 @@ export default function PatientDashboard() {
     // Reload appointments after booking
     loadPatientData();
     setShowAppointmentBooking(false);
+  };
+
+  const handleAppointmentReminderNotification = () => {
+    const nextAppointment = appointments.find(apt => apt.status === 'scheduled');
+    const details = nextAppointment
+      ? `Reminder: ${nextAppointment.doctorName} at ${nextAppointment.time} on ${nextAppointment.date}.`
+      : 'Reminder: You have an upcoming appointment.';
+
+    showLocalNotification('appointmentReminder', { body: details });
+  };
+
+  const handlePrescriptionReadyNotification = () => {
+    const latestPrescription = prescriptions[0];
+    const details = latestPrescription
+      ? `Prescription ready from Dr. ${latestPrescription.doctorName}.`
+      : 'Your prescription is ready for review.';
+
+    showLocalNotification('prescriptionReady', { body: details });
   };
 
 
@@ -308,6 +327,23 @@ export default function PatientDashboard() {
                         <span className="text-gray-600">{t('patient.weight')}</span>
                         <span className="font-medium text-green-600">{t('patient.stable')}</span>
                       </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Notifications</h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleAppointmentReminderNotification}
+                        className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                      >
+                        Send Appointment Reminder
+                      </button>
+                      <button
+                        onClick={handlePrescriptionReadyNotification}
+                        className="w-full bg-green-50 text-green-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+                      >
+                        Send Prescription Ready
+                      </button>
                     </div>
                   </div>
                 </div>
