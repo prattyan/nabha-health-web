@@ -139,6 +139,17 @@ export default function VideoCallModal({ isOpen, onClose, roomId }: VideoCallMod
           setRemoteConnected(false);
         });
 
+        socket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err);
+          setError('Failed to connect to signaling server. Please try again later.');
+        });
+
+        pc.oniceconnectionstatechange = () => {
+          if (pc?.iceConnectionState === 'failed' || pc?.iceConnectionState === 'disconnected') {
+            setError('Connection lost. Please try reconnecting.');
+          }
+        };
+
         // Finally, connect the socket
         socket.connect();
 

@@ -1,14 +1,120 @@
 import { User, LoginCredentials, RegisterData } from '../types/auth';
+import { ServerUser } from '../types/serverTypes';
 import { StorageService } from './storageService';
+import type { DoctorMetrics, SystemMetrics } from '../types/admin';
+import { ApiClient } from './apiClient';
+import { clearAllFcmTokens } from './notificationService';
 
 const USERS_STORAGE_KEY = 'nabhacare_users';
 const CURRENT_USER_KEY = 'nabhacare_current_user';
+const CACHED_DOCTORS_KEY = 'nabhacare_cached_doctors';
+
+
+interface SessionData {
+  user: User;
+  expiry: number;
+}
 
 export class AuthService {
+  private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private api = ApiClient.getInstance();
+  private lastDoctorRefreshTime = 0;
+  private readonly DOCTOR_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+  private mapServerRole(role: string): User['role'] {
+    switch (role) {
+      case 'PATIENT':
+        return 'patient';
+      case 'DOCTOR':
+        return 'doctor';
+      case 'HEALTH_WORKER':
+        return 'healthworker';
+      case 'ADMIN':
+        return 'admin';
+      case 'PHARMACY':
+        // Frontend has no pharmacy role; treat as healthworker for now
+        return 'healthworker';
+      default:
+        return 'patient';
+    }
+  }
+
+  private toFrontendUser(serverUser: ServerUser, password: string = ''): User {
+    return {
+      id: serverUser.id,
+      email: serverUser.email ?? '',
+      password,
+      firstName: serverUser.firstName ?? '',
+      lastName: serverUser.lastName ?? '',
+      phone: serverUser.phone ?? '',
+      role: this.mapServerRole(serverUser.role),
+      createdAt: serverUser.createdAt ?? new Date().toISOString(),
+      updatedAt: serverUser.updatedAt ?? new Date().toISOString(),
+      isActive: serverUser.isActive ?? true,
+      registrationComplete: true,
+      specialization: serverUser.specialization ?? undefined,
+      licenseNumber: serverUser.licenseNumber ?? undefined,
+      village: serverUser.village ?? undefined,
+      workLocation: serverUser.workLocation ?? undefined,
+      experience: serverUser.experience ?? undefined,
+      availableDates: serverUser.availableDates ?? undefined
+    };
+  }
+
+  private async refreshDoctorsFromServer(): Promise<void> {
+    if (!navigator.onLine) return;
+    if (!this.api.getAccessToken()) return;
+    
+    // Throttle refresh requests to avoid spamming the server
+    if (Date.now() - this.lastDoctorRefreshTime < this.DOCTOR_REFRESH_INTERVAL) {
+      return;
+    }
+    
+    this.lastDoctorRefreshTime = Date.now();
+    const res = await this.api.get<{ doctors: Array<{ id: string; firstName: string; lastName: string; specialization?: string; village?: string }> }>('/users/doctors');
+    const doctors: User[] = res.doctors.map((d) => ({
+      id: d.id,
+      email: '',
+      password: '',
+      firstName: d.firstName,
+      lastName: d.lastName,
+      phone: '',
+      role: 'doctor',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isActive: true,
+      registrationComplete: true,
+      specialization: d.specialization,
+      village: d.village
+    }));
+    this.storageService.setItem(CACHED_DOCTORS_KEY, JSON.stringify(doctors));
+  }
+
   getUserById(id: string): User | null {
     const users = this.getUsers();
     return users.find(u => u.id === id) || null;
   }
+  
+  getUsersByRole(role: string): User[] {
+    const users = this.getUsers();
+    if (role === 'doctor') {
+      // Fire-and-forget refresh
+      this.refreshDoctorsFromServer().catch(() => undefined);
+      const cachedRaw = this.storageService.getItem(CACHED_DOCTORS_KEY);
+      let cached: User[] = [];
+      try {
+        const parsed = cachedRaw ? JSON.parse(cachedRaw) : [];
+        cached = Array.isArray(parsed) ? (parsed as User[]) : [];
+      } catch { cached = []; }
+      const merged = [...users.filter(u => u.role === role), ...cached];
+      // De-dup by id
+      const map = new Map<string, User>();
+      merged.forEach(u => map.set(u.id, u));
+      return Array.from(map.values());
+    }
+    return users.filter(u => u.role === role);
+  }
+
   // Migration: Update old doctor ID to new format
   migrateDoctorId(oldId: string, newId: string) {
     const users = this.getUsers();
@@ -23,12 +129,14 @@ export class AuthService {
       this.saveUsers(users);
       // Also update doctorId in prescriptions and appointments
       // Use ES6 import for prescriptionService
-      // @ts-ignore
+
       import('./prescriptionService').then(module => {
         if (module && module.PrescriptionService) {
           const ps = module.PrescriptionService.getInstance();
           ps.migrateDoctorIdInData(oldId, newId);
         }
+      }).catch(err => {
+        console.error('Failed to load prescriptionService for migration', err);
       });
     }
   }
@@ -89,10 +197,33 @@ export class AuthService {
 
   private getUsers(): User[] {
     const users = this.storageService.getItem(USERS_STORAGE_KEY);
-    const parsedUsers = users ? JSON.parse(users) : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsedUsers: any = users ? JSON.parse(users) : [];
     
+    if (!Array.isArray(parsedUsers)) {
+      // Handle potential object wrapper or invalid data
+      if (parsedUsers && typeof parsedUsers === 'object' && Array.isArray(parsedUsers.users)) {
+        parsedUsers = parsedUsers.users;
+      } else if (parsedUsers && typeof parsedUsers === 'object' && Array.isArray(parsedUsers.data)) {
+        parsedUsers = parsedUsers.data;
+      } else {
+        parsedUsers = [];
+      }
+    }
+
+    if (!Array.isArray(parsedUsers)) {
+      parsedUsers = [];
+    }
+    
+    // Safety check just in case
+    if (!Array.isArray(parsedUsers)) {
+       console.warn('AuthService: parsedUsers is not an array, resetting to empty array', parsedUsers);
+       parsedUsers = [];
+    }
+
     // Migrate existing users to new format if needed
-    return parsedUsers.map((user: any) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (Array.isArray(parsedUsers) ? parsedUsers : []).map((user: any) => ({
       ...user,
       updatedAt: user.updatedAt || user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== undefined ? user.isActive : true,
@@ -125,6 +256,35 @@ export class AuthService {
       const validation = this.validateRegistrationData(data);
       if (!validation.isValid) {
         return { success: false, message: validation.message };
+      }
+
+      // Prefer server-side registration when online
+      if (navigator.onLine) {
+        try {
+          const res = await this.api.post<{ user: ServerUser; accessToken: string; refreshToken: string }>('/auth/register', {
+            email: data.email,
+            password: data.password,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            phone: data.phone,
+            role: data.role,
+            specialization: data.specialization,
+            licenseNumber: data.licenseNumber,
+            village: data.village,
+            workLocation: data.workLocation,
+            experience: data.experience
+          });
+          this.api.setTokens(res.accessToken, res.refreshToken);
+          const user = this.toFrontendUser(res.user, '');
+
+          const sessionData: SessionData = { user, expiry: Date.now() + this.SESSION_DURATION };
+          this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+          this.refreshDoctorsFromServer().catch(() => undefined);
+          return { success: true, message: 'Registration successful! Welcome to NabhaCare.', user };
+        } catch (e) {
+          // API failed - fall back to offline registration
+          console.warn('Backend registration failed, falling back to offline mode:', e);
+        }
       }
 
       const users = this.getUsers();
@@ -247,6 +407,26 @@ export class AuthService {
 
   async login(credentials: LoginCredentials): Promise<{ success: boolean; message: string; user?: User }> {
     try {
+      // Prefer server-side login when online
+      if (navigator.onLine) {
+        try {
+          const res = await this.api.post<{ user: ServerUser; accessToken: string; refreshToken: string }>('/auth/login', credentials);
+          this.api.setTokens(res.accessToken, res.refreshToken);
+          const user = this.toFrontendUser(res.user, '');
+
+          const sessionData: SessionData = {
+            user,
+            expiry: Date.now() + this.SESSION_DURATION
+          };
+          this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+          this.refreshDoctorsFromServer().catch(() => undefined);
+          return { success: true, message: 'Login successful', user };
+        } catch (e) {
+          // API failed - fall back to offline login
+          console.warn('Backend login failed, falling back to offline mode:', e);
+        }
+      }
+
       const users = this.getUsers();
       const user = users.find(u => u.email === credentials.email && u.password === credentials.password);
 
@@ -254,22 +434,95 @@ export class AuthService {
         return { success: false, message: 'Invalid email or password' };
       }
 
-      // Store current user
-      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      // Store current user with session expiry
+      const sessionData: SessionData = {
+        user,
+        expiry: Date.now() + this.SESSION_DURATION
+      };
+      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
 
       return { success: true, message: 'Login successful', user };
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Login failed. Please try again.' };
     }
   }
 
   logout(): void {
+    // Best-effort server logout
+    const refreshToken = this.api.getRefreshToken();
+    if (refreshToken && navigator.onLine) {
+      this.api.post('/auth/logout', { refreshToken }).catch(() => undefined);
+    }
+    this.api.clearTokens();
     this.storageService.removeItem(CURRENT_USER_KEY);
+    clearAllFcmTokens();
   }
 
   getCurrentUser(): User | null {
-    const user = this.storageService.getItem(CURRENT_USER_KEY);
-    return user ? JSON.parse(user) : null;
+    try {
+      const stored = this.storageService.getItem(CURRENT_USER_KEY);
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      
+      if (!parsed || typeof parsed !== 'object') return null;
+
+      // Handle legacy session (just user object)
+      if (!parsed.expiry && parsed.id) {
+        // Upgrade legacy session
+        const sessionData: SessionData = {
+          user: parsed,
+          expiry: Date.now() + this.SESSION_DURATION
+        };
+        this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+        return parsed;
+      }
+
+      // Handle new session format
+      if (parsed.expiry) {
+        if (Date.now() > parsed.expiry) {
+          this.logout();
+          return null;
+        }
+        
+        // Auto-refresh session if active
+        const timeRemaining = parsed.expiry - Date.now();
+        if (timeRemaining < this.SESSION_DURATION / 2) {
+            // Fire and forget, but handled safely
+            this.refreshSession(parsed.user).catch(() => {
+              // If refresh fails completely (e.g. invalid token), logout might be needed
+              // But we let the async function handle the logout if needed
+            });
+        }
+
+        return parsed.user;
+      }
+
+      return null;
+    } catch (e) {
+      console.error('Error parsing session data', e);
+      this.logout();
+      return null;
+    }
+  }
+
+  private async refreshSession(user: User): Promise<void> {
+    try {
+      if (!navigator.onLine) return;
+      
+      // Verify with server before extending local session
+      await this.api.refreshTokens();
+      
+      const sessionData: SessionData = {
+          user,
+          expiry: Date.now() + this.SESSION_DURATION
+      };
+      this.storageService.setItem(CURRENT_USER_KEY, JSON.stringify(sessionData));
+    } catch (error) {
+      console.warn('Session auto-refresh failed', error);
+      // Optional: if error is 401/403, could force logout here
+      // this.logout();
+    }
   }
 
   isAuthenticated(): boolean {
@@ -278,10 +531,6 @@ export class AuthService {
 
   getAllUsers(): User[] {
     return this.getUsers();
-  }
-
-  getUsersByRole(role: string): User[] {
-    return this.getUsers().filter(user => user.role === role);
   }
 
   getAvailableDoctors(): User[] {
@@ -332,7 +581,7 @@ export class AuthService {
   validateStorageIntegrity(): { 
     isValid: boolean; 
     issues: string[]; 
-    storageInfo: any;
+    storageInfo: { type: string; size: number; available: boolean } | null;
   } {
     const issues: string[] = [];
     let isValid = true;
@@ -378,5 +627,97 @@ export class AuthService {
         storageInfo: null 
       };
     }
+  }
+
+  // ========== ADMIN METHODS ==========
+
+  /**
+   * Get doctor statistics for admin dashboard
+   */
+  getDoctorStats(): DoctorMetrics {
+    const users = this.getUsers();
+    const doctors = users.filter(u => u.role === 'doctor');
+
+    // Group doctors by specialization
+    const doctorsBySpec: { [key: string]: number } = {};
+    doctors.forEach(doc => {
+      const spec = doc.specialization || 'General';
+      doctorsBySpec[spec] = (doctorsBySpec[spec] || 0) + 1;
+    });
+
+    const doctorsBySpecialization = Object.entries(doctorsBySpec).map(([spec, count]) => ({
+      specialization: spec,
+      count
+    }));
+
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+
+    // Calculate doctors available today
+    const doctorsAvailableToday = doctors.filter(doc => {
+      const availableDates = doc.availableDates || [];
+      return availableDates.includes(today);
+    }).length;
+
+    // Build detailed workload
+    const doctorWorkload = doctors.map(doc => ({
+      doctorId: doc.id,
+      doctorName: `${doc.firstName} ${doc.lastName}`,
+      specialization: doc.specialization || 'General',
+      appointmentsToday: 0, // Will be calculated from PrescriptionService
+      appointmentsThisWeek: 0,
+      totalPatients: doc.totalPatients || 0,
+      totalConsultations: doc.totalConsultations || 0,
+      rating: doc.rating || 0
+    }));
+
+    return {
+      totalDoctors: doctors.length,
+      doctorsBySpecialization,
+      doctorsAvailableToday,
+      doctorWorkload
+    };
+  }
+
+  /**
+   * Get system metrics for admin dashboard
+   */
+  getSystemMetrics(): SystemMetrics {
+    const users = this.getUsers();
+    const integrity = this.validateStorageIntegrity();
+
+    return {
+      storageUsage: {
+        used: this.storageService.getStorageInfo().size || 0,
+        available: 5242880, // 5MB typical localStorage limit
+        percentUsed: Math.round((this.storageService.getStorageInfo().size || 0) / 5242880 * 100)
+      },
+      dataIntegrity: {
+        isValid: integrity.isValid,
+        issues: integrity.issues,
+        duplicateUsers: 0,
+        totalRecords: users.length
+      },
+      userStats: {
+        totalUsers: users.length,
+        activeUsers: users.filter(u => u.isActive).length,
+        patients: users.filter(u => u.role === 'patient').length,
+        doctors: users.filter(u => u.role === 'doctor').length,
+        healthworkers: users.filter(u => u.role === 'healthworker').length,
+        admins: users.filter(u => u.role === 'admin').length
+      }
+    };
+  }
+
+  /**
+   * Get comprehensive admin stats
+   */
+  getAdminStats() {
+    return {
+      doctorMetrics: this.getDoctorStats(),
+      systemMetrics: this.getSystemMetrics(),
+      registrationStats: this.getRegistrationStats(),
+      timestamp: new Date().toISOString()
+    };
   }
 }

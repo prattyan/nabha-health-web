@@ -98,7 +98,7 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
               {user.firstName} {user.lastName}
             </h3>
             <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRoleColor()}`}>
-              {t(`auth.${user.role}`)}
+              {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('worker', ' Worker')}
             </span>
           </div>
         </div>

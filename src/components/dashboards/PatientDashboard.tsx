@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Video, Pill, Heart, Clock, User } from 'lucide-react';
+import { Calendar, Video, Pill, Heart, Clock, User, Brain } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -9,6 +9,9 @@ import { Prescription, Appointment } from '../../types/prescription';
 import PrescriptionViewModal from '../modals/PrescriptionViewModal';
 import AppointmentBookingModal from '../modals/AppointmentBookingModal';
 import MedicationManagementModal from '../modals/MedicationManagementModal';
+import SymptomChecker from '../SymptomChecker';
+import { Button } from '../ui/Button';
+import { Card } from '../ui/Card';
 
 export default function PatientDashboard() {
   type MedicineReminder = {
@@ -37,7 +40,7 @@ export default function PatientDashboard() {
   }
   const { user } = useAuth();
   const { t } = useLanguage();
-  type TabId = 'overview' | 'appointments' | 'records' | 'medicines';
+  type TabId = 'overview' | 'appointments' | 'records' | 'medicines' | 'symptoms';
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [showPrescriptionView, setShowPrescriptionView] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
@@ -50,13 +53,9 @@ export default function PatientDashboard() {
 
   const prescriptionService = PrescriptionService.getInstance();
 
-  React.useEffect(() => {
-    if (user) {
-      loadPatientData();
-    }
-  }, [user]);
 
-  const loadPatientData = () => {
+
+  const loadPatientData = React.useCallback(() => {
     // TODO: Load medicine reminders from prescriptions or medication management service
     // For now, set sample reminders
     setMedicineReminders([
@@ -64,13 +63,20 @@ export default function PatientDashboard() {
       { id: '2', name: 'Amoxicillin', time: '02:00 PM', dosage: '250mg', remainingQuantity: 5, status: 'missed' },
       { id: '3', name: 'Vitamin D', time: '08:00 PM', dosage: '1000 IU', remainingQuantity: 20, status: 'taken' }
     ]);
-  if (!user) return;
-  // Removed initialization of sample prescription and appointment for new patients
-  const patientAppointments = prescriptionService.getAppointmentsByPatient(user.id);
+    if (!user) return;
+    // Removed initialization of sample prescription and appointment for new patients
+    const patientAppointments = prescriptionService.getAppointmentsByPatient(user.id);
     const patientPrescriptions = prescriptionService.getPrescriptionsByPatient(user.id);
     setAppointments(patientAppointments);
     setPrescriptions(patientPrescriptions);
-  };
+  }, [user, prescriptionService]);
+
+  React.useEffect(() => {
+    if (user) {
+      loadPatientData();
+    }
+  }, [user, loadPatientData]);
+
 
   const handleViewPrescription = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
@@ -100,7 +106,7 @@ export default function PatientDashboard() {
     }
   };
 
-  const handleAppointmentBooked = (appointment: Appointment) => {
+  const handleAppointmentBooked = () => {
     // Reload appointments after booking
     loadPatientData();
     setShowAppointmentBooking(false);
@@ -151,19 +157,19 @@ export default function PatientDashboard() {
 
         {/* Quick Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <Card className="p-0">
             <div className="flex items-center">
               <div className="bg-blue-100 p-3 rounded-lg">
                 <Calendar className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-900">{appointments.filter(apt => apt.status === 'scheduled').length}</p>
-                <p className="text-gray-600">{t('patient.upcoming')}</p>
+                 <p className="text-2xl font-bold text-gray-900">{appointments.filter(apt => apt.status === 'scheduled').length}</p>
+                 <p className="text-gray-600">{t('patient.upcoming')}</p>
               </div>
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex items-center">
+          </Card>
+          <Card className="p-0">
+             <div className="flex items-center">
               <div className="bg-green-100 p-3 rounded-lg">
                 <Heart className="h-6 w-6 text-green-600" />
               </div>
@@ -172,8 +178,8 @@ export default function PatientDashboard() {
                 <p className="text-gray-600">{t('dashboard.records')}</p>
               </div>
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          </Card>
+          <Card className="p-0">
             <div className="flex items-center">
               <div className="bg-red-100 p-3 rounded-lg">
                 <Heart className="h-6 w-6 text-red-600" />
@@ -183,7 +189,7 @@ export default function PatientDashboard() {
                 <p className="text-gray-600">{t('patient.healthScore')}</p>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Navigation Tabs */}
@@ -194,7 +200,8 @@ export default function PatientDashboard() {
                 { id: 'overview', label: t('dashboard.overview'), icon: Heart },
                 { id: 'appointments', label: t('dashboard.appointments'), icon: Calendar },
                 { id: 'records', label: t('dashboard.records'), icon: Heart },
-                { id: 'medicines', label: t('dashboard.medicines'), icon: Pill }
+                { id: 'medicines', label: t('dashboard.medicines'), icon: Pill },
+                { id: 'symptoms', label: 'AI Check', icon: Brain }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -213,6 +220,7 @@ export default function PatientDashboard() {
           </div>
 
           <div className="p-6">
+            {activeTab === 'symptoms' && <SymptomChecker />}
             {activeTab === 'medicines' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -225,8 +233,9 @@ export default function PatientDashboard() {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {medicineReminders.map((medicine, index) => (
-                    <div key={medicine.id || index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                   {medicineReminders.map((medicine, index) => (
+                    <Card key={medicine.id || index} className="p-0">
+                      <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 rounded-full ${
                           medicine.status === 'taken' ? 'bg-green-500' : 
@@ -245,21 +254,25 @@ export default function PatientDashboard() {
                       </div>
                       <div className="flex space-x-2">
                         {(medicine.status === 'scheduled' || medicine.status === 'missed') && (
-                          <button 
+                          <Button 
+                            variant="primary"
+                            size="sm"
                             onClick={() => handleMarkMedicineTaken(medicine.id)}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                            className="bg-green-600 hover:bg-green-700" 
                           >
                             {t('patient.markTaken')}
-                          </button>
+                          </Button>
                         )}
-                        <button 
+                        <Button 
+                          variant="outline"
+                          size="sm"
                           onClick={() => setShowMedicationManagement(true)}
-                          className="border border-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-50 transition-colors"
                         >
                           {t('patient.details')}
-                        </button>
+                        </Button>
                       </div>
-                    </div>
+                      </div>
+                    </Card>
                   ))}
                   {medicineReminders.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
@@ -341,12 +354,11 @@ export default function PatientDashboard() {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">{t('patient.upcoming')} {t('dashboard.appointments')}</h3>
-                  <button 
+                  <Button 
                     onClick={() => setShowAppointmentBooking(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     {t('patient.bookAppointment')}
-                  </button>
+                  </Button>
                 </div>
                 {/* Upcoming (Scheduled) Appointments */}
                 <div className="space-y-4">
@@ -354,7 +366,7 @@ export default function PatientDashboard() {
                     .filter(a => a.status === 'scheduled')
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map((appointment) => (
-                      <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
+                      <Card key={appointment.id} className="p-0">
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-semibold text-gray-900">{appointment.doctorName}</h4>
@@ -371,12 +383,12 @@ export default function PatientDashboard() {
                             </div>
                           </div>
                           <div className="flex space-x-2">
-                            <button
-                              className={`bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors`}
+                            <Button
+                              size="sm"
                               onClick={() => handleStartCall(appointment)}
                             >
                               {t('doctor.startCall')}
-                            </button>
+                            </Button>
                             <VideoCallModal
                               isOpen={showVideoCall && !!videoCallRoomId}
                               onClose={() => {
@@ -385,21 +397,22 @@ export default function PatientDashboard() {
                               }}
                               roomId={videoCallRoomId || ''}
                             />
-                            <button 
+                            <Button 
+                              size="sm"
                               onClick={() => handleRescheduleAppointment(appointment)}
-                              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
                             >
                               {t('doctor.reschedule')}
-                            </button>
-                            <button 
+                            </Button>
+                            <Button 
+                              size="sm"
+                              variant="danger"
                               onClick={() => handleCancelAppointment(appointment.id)}
-                              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
-                      </div>
+                      </Card>
                     ))}
                 </div>
                 {/* Completed Appointments */}
@@ -441,7 +454,7 @@ export default function PatientDashboard() {
                 <div className="space-y-4">
                   {prescriptions.map((prescription) => {
                     return (
-                      <div key={prescription.id} className="border border-gray-200 rounded-lg p-4">
+                      <Card key={prescription.id} className="p-0">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center space-x-2 mb-2">
@@ -467,15 +480,17 @@ export default function PatientDashboard() {
                             </ul>
                           </div>
                           <div className="flex flex-col items-end space-y-2">
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700"
                               onClick={() => handleViewPrescription(prescription)}
-                              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                             >
                               {t('common.view')} {t('patient.details')}
-                            </button>
+                            </Button>
                           </div>
                         </div>
-                      </div>
+                      </Card>
                     );
                   })}
                 </div>

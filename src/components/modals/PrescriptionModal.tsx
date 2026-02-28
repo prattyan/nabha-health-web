@@ -26,6 +26,7 @@ export default function PrescriptionModal({
   const [symptoms, setSymptoms] = useState('');
   const [notes, setNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [medicines, setMedicines] = useState<Medicine[]>([
     {
       id: '1',
@@ -135,6 +136,32 @@ export default function PrescriptionModal({
           };
         });
 
+      // File validation and upload simulation
+      let attachmentUrl = undefined;
+      if (selectedFile) {
+        // Validate file size (max 5MB)
+        if (selectedFile.size > 5 * 1024 * 1024) {
+          alert("File size exceeds 5MB limit.");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Validate file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(selectedFile.type)) {
+          alert("Invalid file type. Only PDF, JPG, and PNG are allowed.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Uploading file:', selectedFile.name);
+        // Simulate upload delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Generate a mock URL for the stored file
+        // In a real implementation, this would be the URL returned by the storage service
+        attachmentUrl = `https://storage.nabhacare.com/uploads/${Date.now()}_${selectedFile.name}`;
+      }
+
       const prescriptionData: Omit<Prescription, 'id' | 'createdAt' | 'updatedAt'> = {
         patientId,
         patientName,
@@ -146,8 +173,15 @@ export default function PrescriptionModal({
         medicines: processedMedicines,
         notes,
         followUpDate: followUpDate || undefined,
-        status: 'active'
+        status: 'active',
+        attachmentUrl // Save the attachment URL
       };
+
+      // In real app, we would upload the file here
+
+      if (selectedFile) {
+        console.log('Attaching file:', selectedFile.name);
+      }
 
       prescriptionService.createPrescription(prescriptionData);
       onPrescriptionCreated();
@@ -353,18 +387,36 @@ export default function PrescriptionModal({
                 placeholder="Any additional instructions or notes..."
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Follow-up Date
-              </label>
-              <input
-                type="date"
-                value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min={new Date().toISOString().split('T')[0]}
-                title="Select follow-up date"
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Follow-up Date
+                </label>
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  min={new Date().toISOString().split('T')[0]}
+                  title="Select follow-up date"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Previous Records / Scans
+                </label>
+                <input 
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">Supported formats: PDF, JPG, PNG (Max 5MB)</p>
+              </div>
             </div>
           </div>
 
