@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Clock, Pill, Check, AlertCircle, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -23,13 +23,7 @@ export default function MedicationManagementModal({
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && user) {
-      loadMedicationData();
-    }
-  }, [isOpen, user]);
-
-  const loadMedicationData = () => {
+  const loadMedicationData = useCallback(() => {
     if (!user) return;
     
     const tracking = prescriptionService.getMedicationTrackingByPatient(user.id);
@@ -37,7 +31,13 @@ export default function MedicationManagementModal({
     
     setMedicationTracking(tracking);
     setPrescriptions(userPrescriptions);
-  };
+  }, [user, prescriptionService]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      loadMedicationData();
+    }
+  }, [isOpen, user, loadMedicationData]);
 
   const handleMarkTaken = async (trackingId: string) => {
     setIsLoading(true);

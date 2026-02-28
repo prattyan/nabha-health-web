@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Video, Pill, Heart, Clock, User } from 'lucide-react';
+import { Calendar, Video, Pill, Heart, Clock, User, Brain } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { PrescriptionService } from '../../services/prescriptionService';
@@ -9,6 +9,7 @@ import { Prescription, Appointment } from '../../types/prescription';
 import PrescriptionViewModal from '../modals/PrescriptionViewModal';
 import AppointmentBookingModal from '../modals/AppointmentBookingModal';
 import MedicationManagementModal from '../modals/MedicationManagementModal';
+import SymptomChecker from '../SymptomChecker';
 
 export default function PatientDashboard() {
   type MedicineReminder = {
@@ -37,7 +38,7 @@ export default function PatientDashboard() {
   }
   const { user } = useAuth();
   const { t } = useLanguage();
-  type TabId = 'overview' | 'appointments' | 'records' | 'medicines';
+  type TabId = 'overview' | 'appointments' | 'records' | 'medicines' | 'symptoms';
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [showPrescriptionView, setShowPrescriptionView] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
@@ -50,13 +51,9 @@ export default function PatientDashboard() {
 
   const prescriptionService = PrescriptionService.getInstance();
 
-  React.useEffect(() => {
-    if (user) {
-      loadPatientData();
-    }
-  }, [user]);
 
-  const loadPatientData = () => {
+
+  const loadPatientData = React.useCallback(() => {
     // TODO: Load medicine reminders from prescriptions or medication management service
     // For now, set sample reminders
     setMedicineReminders([
@@ -64,13 +61,20 @@ export default function PatientDashboard() {
       { id: '2', name: 'Amoxicillin', time: '02:00 PM', dosage: '250mg', remainingQuantity: 5, status: 'missed' },
       { id: '3', name: 'Vitamin D', time: '08:00 PM', dosage: '1000 IU', remainingQuantity: 20, status: 'taken' }
     ]);
-  if (!user) return;
-  // Removed initialization of sample prescription and appointment for new patients
-  const patientAppointments = prescriptionService.getAppointmentsByPatient(user.id);
+    if (!user) return;
+    // Removed initialization of sample prescription and appointment for new patients
+    const patientAppointments = prescriptionService.getAppointmentsByPatient(user.id);
     const patientPrescriptions = prescriptionService.getPrescriptionsByPatient(user.id);
     setAppointments(patientAppointments);
     setPrescriptions(patientPrescriptions);
-  };
+  }, [user, prescriptionService]);
+
+  React.useEffect(() => {
+    if (user) {
+      loadPatientData();
+    }
+  }, [user, loadPatientData]);
+
 
   const handleViewPrescription = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
@@ -100,7 +104,7 @@ export default function PatientDashboard() {
     }
   };
 
-  const handleAppointmentBooked = (appointment: Appointment) => {
+  const handleAppointmentBooked = () => {
     // Reload appointments after booking
     loadPatientData();
     setShowAppointmentBooking(false);
@@ -202,7 +206,8 @@ export default function PatientDashboard() {
                 { id: 'overview', label: t('dashboard.overview'), icon: Heart },
                 { id: 'appointments', label: t('dashboard.appointments'), icon: Calendar },
                 { id: 'records', label: t('dashboard.records'), icon: Heart },
-                { id: 'medicines', label: t('dashboard.medicines'), icon: Pill }
+                { id: 'medicines', label: t('dashboard.medicines'), icon: Pill },
+                { id: 'symptoms', label: 'AI Check', icon: Brain }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -221,6 +226,7 @@ export default function PatientDashboard() {
           </div>
 
           <div className="p-6">
+            {activeTab === 'symptoms' && <SymptomChecker />}
             {activeTab === 'medicines' && (
               <div>
                 <div className="flex justify-between items-center mb-6">

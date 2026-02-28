@@ -859,10 +859,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     storageService.setItem('nabhacare_language', language);
-  }, [language]);
+  }, [language, storageService]);
 
   const t = (key: string): string => {
-    return (translations[language] as any)[key] || key;
+    const langData = translations[language] || translations['en'];
+    return (langData as Record<string, string>)[key] || key;
   };
 
   return (

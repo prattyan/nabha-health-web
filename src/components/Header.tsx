@@ -1,7 +1,7 @@
 import React from 'react';
 import { Heart, Menu, X, User, LogIn, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage, Language } from '../contexts/LanguageContext';
 import UserProfile from './auth/UserProfile';
 
 interface HeaderProps {
@@ -54,7 +54,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       <button
                         key={lang.code}
                         onClick={() => {
-                          setLanguage(lang.code as any);
+                          setLanguage(lang.code as Language);
                           setShowLanguageMenu(false);
                         }}
                         className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
@@ -80,14 +80,14 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
             </div>
           ) : (
             <>
-              <nav className="hidden md:flex space-x-8">
+              <nav className="hidden lg:flex space-x-8">
                 <a href="#home" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.home')}</a>
                 <a href="#problem" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.problem')}</a>
                 <a href="#solution" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.solution')}</a>
                 <a href="#servicearea" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.servicearea')}</a>
                 <a href="#impact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">{t('header.impact')}</a>
               </nav>
-              <div className="hidden md:flex items-center space-x-4">
+              <div className="hidden lg:flex items-center space-x-4">
                 <div className="relative">
                   <button
                     onClick={() => setShowLanguageMenu(!showLanguageMenu)}
@@ -104,7 +104,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                         <button
                           key={lang.code}
                           onClick={() => {
-                            setLanguage(lang.code as any);
+                            setLanguage(lang.code as Language);
                             setShowLanguageMenu(false);
                           }}
                           className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
@@ -127,7 +127,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
               </div>
             </>
           )}
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-gray-700 hover:text-blue-600"
@@ -137,7 +137,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
           </div>
         </div>
         {mobileMenuOpen && (
-          <div className="md:hidden pb-4 border-t border-gray-200">
+          <div className="lg:hidden pb-4 border-t border-gray-200">
             <nav className="flex flex-col space-y-2 pt-4">
               {/* Only show language and user name if signed in */}
               {isAuthenticated && user ? (
@@ -148,7 +148,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as any)}
+                          onClick={() => setLanguage(lang.code as Language)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 
@@ -180,7 +180,7 @@ export default function Header({ mobileMenuOpen, setMobileMenuOpen, onLoginClick
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
-                          onClick={() => setLanguage(lang.code as any)}
+                          onClick={() => setLanguage(lang.code as Language)}
                           className={`px-3 py-1 rounded text-sm transition-colors ${
                             language === lang.code 
                               ? 'bg-blue-600 text-white' 
