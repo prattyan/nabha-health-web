@@ -36,9 +36,11 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
 
   // Cancel the timer if the component unmounts during the 2-second success window
   useEffect(() => {
+    // Copy the ref value to a local variable to satisfy exhaustive-deps
+    const timer = successTimerRef.current;
     return () => {
-      if (successTimerRef.current) {
-        clearTimeout(successTimerRef.current);
+      if (timer) {
+        clearTimeout(timer);
       }
     };
   }, []);

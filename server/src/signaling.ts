@@ -59,7 +59,7 @@ export function setupSignaling(server: http.Server) {
       const decoded = verifyAccessToken(token);
       socket.data.userId = decoded.sub;
       next();
-    } catch (error) {
+    } catch {
       next(new Error('Authentication error: Invalid token'));
     }
   });

@@ -3,6 +3,7 @@ import { ApiClient } from './apiClient';
 
 // Use same base URL as API
 const getBaseUrl = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const envBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
     return envBase || window.location.origin;
 };
