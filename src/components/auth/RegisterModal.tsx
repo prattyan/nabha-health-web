@@ -2,61 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { RegisterData } from '../../types/auth';
 
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchToLogin: () => void;
-  customRegister?: (data: RegisterData) => Promise<{ success: boolean; message?: string }>;
 }
 
-// Maps technical/backend error messages to friendly, human-readable ones
-const getFriendlyErrorMessage = (message: string): string => {
-  const lower = message.toLowerCase();
-
-  if (lower.includes('email') && (lower.includes('exist') || lower.includes('taken') || lower.includes('already') || lower.includes('duplicate'))) {
-    return 'An account with this email address already exists. Please try logging in or use a different email.';
-  }
-  if (lower.includes('phone') && (lower.includes('exist') || lower.includes('taken') || lower.includes('already') || lower.includes('duplicate'))) {
-    return 'This phone number is already registered. Please use a different number.';
-  }
-  if (lower.includes('password') && lower.includes('weak')) {
-    return 'Your password is too weak. Please choose a stronger password with at least 8 characters.';
-  }
-  if (lower.includes('password') && lower.includes('match')) {
-    return 'Your passwords do not match. Please make sure both passwords are the same.';
-  }
-  if (lower.includes('invalid email') || lower.includes('email format')) {
-    return 'Please enter a valid email address (e.g. name@example.com).';
-  }
-  if (lower.includes('invalid phone') || lower.includes('phone format')) {
-    return 'Please enter a valid phone number.';
-  }
-  if (lower.includes('network') || lower.includes('fetch') || lower.includes('connection') || lower.includes('econnrefused')) {
-    return 'Unable to connect to the server. Please check your internet connection and try again.';
-  }
-  if (lower.includes('timeout')) {
-    return 'The request took too long. Please try again.';
-  }
-  if (lower.includes('server error') || lower.includes('500') || lower.includes('internal')) {
-    return 'Something went wrong on our end. Please try again in a moment.';
-  }
-  if (lower.includes('unauthorized') || lower.includes('401')) {
-    return 'You are not authorised to perform this action. Please contact support.';
-  }
-  if (lower.includes('forbidden') || lower.includes('403')) {
-    return 'Access denied. Please contact support if you believe this is a mistake.';
-  }
-  if (lower.includes('required') || lower.includes('missing')) {
-    return 'Please fill in all required fields and try again.';
-  }
-
-  // If we cannot map the error, return a safe generic message instead of the raw technical one
-  return 'Registration failed. Please check your details and try again. If the problem persists, please contact support.';
-};
-
-export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, customRegister }: RegisterModalProps) {
+export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: RegisterModalProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -151,58 +104,34 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin, custom
 
     setIsLoading(true);
 
-    const dataToSubmit = {
+    const result = await register({
       ...formData,
       experience: formData.experience ? parseInt(formData.experience) : undefined,
-    };
-
-    try {
-      let result;
-      if (customRegister) {
-        result = await customRegister(dataToSubmit);
-      } else {
-        result = await register(dataToSubmit);
-      }
-
-      if (result.success) {
-        setSuccess(result.message || 'Registration successful! Welcome aboard 🎉');
-        // Show success message for 2 seconds before closing;
-        // keep button disabled for the entire 2-second window
-        successTimerRef.current = setTimeout(() => {
-          setIsLoading(false);
-          onClose();
-          setFormData({
-            email: '',
-            password: '',
-            confirmPassword: '',
-            firstName: '',
-            lastName: '',
-            phone: '',
-            role: 'patient',
-            specialization: '',
-            licenseNumber: '',
-            village: '',
-            workLocation: '',
-            experience: '',
-          });
-          setSuccess('');
-
-          // Only switch to login if we are using the default flow (not custom register)
-          if (!customRegister && onSwitchToLogin) {
-            onSwitchToLogin();
-          }
-        }, 2000);
-      } else {
-        // Convert technical backend message to a friendly one
-        const rawMessage = result.message || 'Registration failed';
-        setError(getFriendlyErrorMessage(rawMessage));
-        setIsLoading(false);
-      }
-    } catch (err: any) {
-      // Handle unexpected errors (network issues, etc.)
-      const rawMessage = err?.message || 'Unexpected error';
-      setError(getFriendlyErrorMessage(rawMessage));
-      setIsLoading(false);
+    });
+    
+    if (result.success) {
+      setSuccess(result.message);
+      // Show success message for 2 seconds before closing
+      setTimeout(() => {
+        onClose();
+        setFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          role: 'patient',
+          specialization: '',
+          licenseNumber: '',
+          village: '',
+          workLocation: '',
+          experience: '',
+        });
+        setSuccess('');
+      }, 2000);
+    } else {
+      setError(result.message);
     }
   };
 

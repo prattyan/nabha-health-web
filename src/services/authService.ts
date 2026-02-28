@@ -281,8 +281,8 @@ export class AuthService {
           this.refreshDoctorsFromServer().catch(() => undefined);
           return { success: true, message: 'Registration successful! Welcome to NabhaCare.', user };
         } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Registration failed';
-          return { success: false, message: msg };
+          // API failed - fall back to offline registration
+          console.warn('Backend registration failed, falling back to offline mode:', e);
         }
       }
 
@@ -421,8 +421,8 @@ export class AuthService {
           this.refreshDoctorsFromServer().catch(() => undefined);
           return { success: true, message: 'Login successful', user };
         } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Login failed';
-          return { success: false, message: msg };
+          // API failed - fall back to offline login
+          console.warn('Backend login failed, falling back to offline mode:', e);
         }
       }
 
