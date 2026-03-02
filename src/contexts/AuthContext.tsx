@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { User, AuthState, LoginCredentials, RegisterData } from '../types/auth';
 import { AuthService } from '../services/authService';
+import { disablePushNotifications } from '../services/notificationService';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; message: string }>;
@@ -98,6 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    if (state.user) {
+      disablePushNotifications(state.user.id);
+    }
     authService.logout();
     dispatch({ type: 'LOGOUT' });
   };

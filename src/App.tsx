@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { getStoredFcmToken, registerNotificationServiceWorker, subscribeToForegroundMessages } from './services/notificationService';
 import Header from './components/Header';
 import LoginModal from './components/auth/LoginModal';
 import RegisterModal from './components/auth/RegisterModal';
@@ -20,6 +21,17 @@ function AppContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const storedToken = getStoredFcmToken(user.id);
+      if (storedToken && Notification.permission === 'granted') {
+        registerNotificationServiceWorker().then(() => {
+          subscribeToForegroundMessages();
+        });
+      }
+    }
+  }, [isAuthenticated, user]);
 
   const handleSwitchToRegister = () => {
     setShowLoginModal(false);

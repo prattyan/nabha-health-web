@@ -112,6 +112,10 @@ export default function PatientDashboard() {
     setShowAppointmentBooking(false);
   };
 
+  /**
+   * Triggers a local reminder notification for the next scheduled appointment.
+   * Finds the upcoming appointment and formats the notification body.
+   */
   const handleAppointmentReminderNotification = () => {
     const nextAppointment = appointments.find(apt => apt.status === 'scheduled');
     const details = nextAppointment
@@ -121,6 +125,10 @@ export default function PatientDashboard() {
     showLocalNotification('appointmentReminder', { body: details });
   };
 
+  /**
+   * Triggers a local notification that a prescription is ready.
+   * Uses the most recent prescription for the notification details.
+   */
   const handlePrescriptionReadyNotification = () => {
     const latestPrescription = prescriptions[0];
     const details = latestPrescription
@@ -329,23 +337,25 @@ export default function PatientDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Notifications</h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={handleAppointmentReminderNotification}
-                        className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
-                      >
-                        Send Appointment Reminder
-                      </button>
-                      <button
-                        onClick={handlePrescriptionReadyNotification}
-                        className="w-full bg-green-50 text-green-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
-                      >
-                        Send Prescription Ready
-                      </button>
+                  {import.meta.env.DEV && (
+                    <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Test Notifications</h4>
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleAppointmentReminderNotification}
+                          className="w-full bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                        >
+                          Send Appointment Reminder
+                        </button>
+                        <button
+                          onClick={handlePrescriptionReadyNotification}
+                          className="w-full bg-green-50 text-green-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+                        >
+                          Send Prescription Ready
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
