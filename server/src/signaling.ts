@@ -65,7 +65,7 @@ export function setupSignaling(server: http.Server) {
   });
 
   io.on('connection', (socket: Socket) => {
-    logger.info({ socketId: socket.id, userId: socket.data.userId }, 'Socket connected');
+    logger.info(`Socket connected`, { socketId: socket.id, userId: socket.data.userId });
 
     socket.on('join-room', (payload) => {
       try {
@@ -81,6 +81,8 @@ export function setupSignaling(server: http.Server) {
         const initiatorId = roomInitiators.get(roomId);
         const roomSize = getRoomSize(io, roomId);
 
+        logger.info(`User joined room`, { roomId, socketId: socket.id, userId: socket.data.userId });
+
         socket.emit('room-joined', {
           roomId,
           roomSize,
@@ -93,7 +95,7 @@ export function setupSignaling(server: http.Server) {
           socket.emit('room-waiting', { roomId });
         }
       } catch (err) {
-        logger.error({ err, payload }, 'Invalid join-room payload');
+        logger.error(`WebRTC Error: Invalid join-room payload`, { err: err instanceof Error ? err.message : String(err), payload });
       }
     });
 
@@ -102,7 +104,7 @@ export function setupSignaling(server: http.Server) {
         const { roomId, offer } = offerSchema.parse(payload);
         socket.to(roomId).emit('offer', { offer });
       } catch (err) {
-        logger.error({ err, payload }, 'Invalid offer payload');
+        logger.error(`WebRTC Error: Invalid offer payload`, { err: err instanceof Error ? err.message : String(err), payload });
       }
     });
 
@@ -111,7 +113,7 @@ export function setupSignaling(server: http.Server) {
         const { roomId, answer } = answerSchema.parse(payload);
         socket.to(roomId).emit('answer', { answer });
       } catch (err) {
-        logger.error({ err, payload }, 'Invalid answer payload');
+        logger.error(`WebRTC Error: Invalid answer payload`, { err: err instanceof Error ? err.message : String(err), payload });
       }
     });
 
@@ -120,7 +122,7 @@ export function setupSignaling(server: http.Server) {
         const { roomId, candidate } = iceCandidateSchema.parse(payload);
         socket.to(roomId).emit('ice-candidate', { candidate });
       } catch (err) {
-        logger.error({ err, payload }, 'Invalid ice-candidate payload');
+        logger.error(`WebRTC Error: Invalid ice-candidate payload`, { err: err instanceof Error ? err.message : String(err), payload });
       }
     });
 
@@ -139,7 +141,7 @@ export function setupSignaling(server: http.Server) {
           roomInitiators.delete(roomId);
         }
       }
-      logger.info({ socketId: socket.id, roomId }, 'Socket disconnected');
+      logger.info(`Socket disconnected`, { socketId: socket.id, roomId });
     });
   });
 }

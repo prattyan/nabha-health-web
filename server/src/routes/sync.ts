@@ -8,6 +8,7 @@ import { writeAuditLog } from '../audit.js';
 import { decryptString, encryptString } from '../security/crypto.js';
 import { requireRole } from '../http/rbac.js';
 import { withRequestDb } from '../requestContext.js';
+import { logger } from '../logger.js';
 
 export const syncRouter = Router();
 
@@ -216,12 +217,13 @@ const pushSchema = z.object({
   ops: z.array(opSchema).max(500)
 });
 
-syncRouter.post('/push', requireAuth, async (req, res) => {
-  const body = parseBody(pushSchema, req.body);
-  const actorId = req.user!.id;
-  const role = req.user!.role;
+syncRouter.post('/push', requireAuth, async (req, res, next) => {
+  try {
+    const body = parseBody(pushSchema, req.body);
+    const actorId = req.user!.id;
+    const role = req.user!.role;
 
-  const payload = await withRequestDb(req, async (tx) => {
+    const payload = await withRequestDb(req, async (tx) => {
     const applied: Array<{ opId: string; entityId: string; newVersion: number }> = [];
     const conflicts: Array<{ opId: string; entityId: string; serverVersion: number; reason: string; serverData?: unknown }> = [];
 
@@ -842,7 +844,15 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
           applied.push({ opId: op.opId, entityId: created.id, newVersion: created.version });
           continue;
         }
-      } catch {
+      } catch (err) {
+        import('../logger.js').then(({ logger }) => {
+          logger.error(`Sync Failure: Operation rejected or failed`, { 
+            err: err instanceof Error ? err.stack : String(err), 
+            opId: op.opId, 
+            entityId: op.entityId, 
+            userId: actorId 
+          });
+        });
         conflicts.push({ opId: op.opId, entityId: op.entityId ?? 'unknown', serverVersion: 0, reason: 'REJECTED' });
       }
     }
@@ -867,6 +877,10 @@ syncRouter.post('/push', requireAuth, async (req, res) => {
   });
 
   res.json(payload);
+  } catch (error) {
+    logger.error(`Sync Failure (Push): ${error instanceof Error ? error.message : String(error)}`, { error, userId: req.user?.id });
+    next(error);
+  }
 });
 
 const pullSchema = z.object({
@@ -874,7 +888,8 @@ const pullSchema = z.object({
   since: z.string().optional()
 });
 
-syncRouter.get('/pull', requireAuth, async (req, res) => {
+syncRouter.get('/pull', requireAuth, async (req, res, next) => {
+  try {
   const parsed = pullSchema.safeParse(req.query);
   if (!parsed.success) throw badRequest('Validation error', 'VALIDATION_ERROR');
 
@@ -1265,6 +1280,10 @@ const prescriptions = (rxRows as unknown as SyncPrescriptionRow[]).map((p) => ({
   });
 
   res.json(payload);
+  } catch (error) {
+    logger.error(`Sync Failure (Pull): ${error instanceof Error ? error.message : String(error)}`, { error, userId: req.user?.id });
+    next(error);
+  }
 });
 
 syncRouter.get('/history', requireAuth, requireRole([UserRole.ADMIN]), async (req, res) => {

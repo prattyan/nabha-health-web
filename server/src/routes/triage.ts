@@ -5,6 +5,7 @@ import { parseBody } from '../http/validate.js';
 import { AuditAction } from '@prisma/client';
 import { writeAuditLog } from '../audit.js';
 import { withRequestDb } from '../requestContext.js';
+import { logger } from '../logger.js';
 
 export const triageRouter = Router();
 
@@ -16,8 +17,14 @@ const createSchema = z.object({
   source: z.string().optional()
 });
 
-triageRouter.post('/', requireAuth, async (req, res) => {
+triageRouter.post('/', requireAuth, async (req, res, next) => {
+  try {
   const body = parseBody(createSchema, req.body);
+  
+  if (body.latencyMs && body.latencyMs > 5000) {
+    logger.warn(`Triage Timeout: High latency detected`, { latencyMs: body.latencyMs, patientId: body.patientId, symptoms: body.symptoms });
+  }
+
   const payload = await withRequestDb(req, async (tx) => {
     const row = await tx.aiTriageLog.create({
       data: {
@@ -45,4 +52,8 @@ triageRouter.post('/', requireAuth, async (req, res) => {
   });
 
   res.status(201).json(payload);
+  } catch (error) {
+    logger.error(`Triage Error: ${error instanceof Error ? error.message : String(error)}`, { error, userId: req.user?.id });
+    next(error);
+  }
 });
